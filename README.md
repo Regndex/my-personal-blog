@@ -19,25 +19,28 @@
 personal-blog/
 ├── index.html                      نقطة الدخول، اتجاه RTL وخطوط جوجل
 ├── vite.config.js                  إعداد Vite + إضافة Tailwind
+├── vercel.json                     إعادة توجيه SPA (يمنع 404 عند نشر Vercel)
 ├── .env.example                    نموذج متغيرات البيئة
 ├── supabase/
 │   └── schema.sql                  كود SQL لإنشاء الجدول وسياسات RLS والتخزين
 └── src/
-    ├── main.jsx                    نقطة تشغيل React + BrowserRouter
+    ├── main.jsx                    نقطة تشغيل React + BrowserRouter + AuthProvider
     ├── App.jsx                     تعريف المسارات (Routes)
     ├── index.css                   استيراد Tailwind + نظام الألوان والخطوط
     ├── lib/
-    │   └── supabaseClient.js       إعداد اتصال Supabase
+    │   ├── supabaseClient.js       إعداد اتصال Supabase
+    │   └── AuthContext.jsx         حالة تسجيل الدخول عبر التطبيق كله
     ├── components/
     │   ├── Header.jsx              الهيدر: الشعار والتنقل
     │   ├── SearchBar.jsx           حقل البحث
     │   ├── PostCard.jsx            بطاقة المقال في الشبكة
     │   ├── VideoEmbed.jsx          مشغل فيديو يوتيوب متجاوب
-    │   └── LoadingSpinner.jsx      مؤشر التحميل
+    │   ├── LoadingSpinner.jsx      مؤشر التحميل
+    │   └── Login.jsx               نموذج تسجيل الدخول (بلا تسجيل عام)
     ├── pages/
     │   ├── Home.jsx                الصفحة الرئيسية (شبكة + بحث)
     │   ├── PostView.jsx            صفحة قراءة مقال واحد
-    │   └── AdminPanel.jsx          نموذج نشر مقال جديد
+    │   └── AdminPanel.jsx          محمي بتسجيل الدخول + نموذج نشر مقال
     └── utils/
         ├── formatDate.js           تنسيق التاريخ بالعربية
         ├── excerpt.js              توليد مقتطف من نص المقال
@@ -52,10 +55,10 @@ personal-blog/
    هذا الملف ينشئ:
    - جدول `posts` بالأعمدة: `id`, `title`, `content`, `image_url`,
      `video_url`, `created_at`.
-   - سياسات RLS تسمح بالقراءة والكتابة العامة (لأن لوحة التحكم لا تحتوي
-     تسجيل دخول — انظر ملاحظة الأمان أدناه).
-   - مخزن (bucket) باسم `blog-images` بوصول عام للقراءة، مع سياسات لرفع
-     الصور إليه.
+   - سياسات RLS: القراءة متاحة للجميع، أما النشر (`insert`) فمقتصر على
+     مستخدم مسجّل دخوله فقط — التفاصيل في القسم 3 أدناه.
+   - مخزن (bucket) باسم `blog-images` بوصول عام للقراءة، والرفع فيه مقتصر
+     أيضاً على المستخدم المسجّل دخوله.
 3. من **Project Settings → Data API**، انسخ **Project URL**.
    من **Project Settings → API Keys**، انسخ مفتاح **anon public**.
 
@@ -72,7 +75,28 @@ VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-## 3) التشغيل محلياً بـ Vite
+## 3) حماية لوحة التحكم (تسجيل الدخول)
+
+مسار `/admin` محمي الآن بتسجيل دخول عبر Supabase Auth، ولا يوجد نموذج
+تسجيل عام (Sign Up) — عمداً، حتى لا يقدر أي زائر إنشاء حساب لنفسه. الحساب
+الوحيد المسموح به هو حسابك أنت، ويُنشأ يدوياً من لوحة Supabase:
+
+1. من لوحة Supabase: **Authentication → Users → Add user**.
+2. أدخل بريدك الإلكتروني وكلمة مرور، وفعّل خيار **Auto Confirm User** حتى
+   يصبح الحساب جاهزاً للدخول فوراً بدون تأكيد بريد.
+3. من **Authentication → Sign In / Providers** (أو **Settings** حسب واجهة
+   لوحتك)، عطّل **Allow new users to sign up**. هذه الخطوة **ضرورية أمنياً**:
+   بدونها، أي شخص يقدر يستدعي `auth.signUp()` مباشرة عبر واجهة Supabase
+   ويصبح "authenticated" بنفسه، متجاوزاً تسجيل الدخول في الواجهة تماماً.
+4. تأكد أنك نفّذت أحدث نسخة من `supabase/schema.sql` — سياسة النشر أصبحت
+   الآن مقتصرة على `to authenticated` بدلاً من `to anon, authenticated`.
+
+بعد هذا: رابط `/admin` لا يظهر في القائمة العلوية إلا لمن سجّل دخوله، وأي
+زائر آخر يفتح `/admin` مباشرة سيرى نموذج تسجيل دخول فقط، بلا أي قدرة على
+النشر حتى لو حاول استدعاء الـ API مباشرة (الحماية الفعلية في RLS على
+قاعدة البيانات، وليس فقط في إخفاء الرابط بالواجهة).
+
+## 4) التشغيل بـ Vite
 
 يتطلب [Node.js](https://nodejs.org) إصدار 18 أو أحدث.
 
@@ -88,26 +112,17 @@ npm run build      # يُنشئ مجلد dist/ جاهزاً للنشر
 npm run preview    # معاينة نسخة الإنتاج محلياً
 ```
 
-## ⚠️ ملاحظة أمان مهمة
-
-لوحة التحكم (`/admin`) **غير محمية بتسجيل دخول** — أي شخص يعرف الرابط
-يستطيع نشر مقال، تماماً كما هو محدد في المتطلبات الأصلية (نموذج نشر مباشر
-بدون طبقة مصادقة). هذا مناسب للتجربة المحلية أو الاستخدام الشخصي البحت،
-لكن **قبل نشر الموقع للعامة**، يُنصح بشدة بإضافة حماية حقيقية، مثل:
-
-- تفعيل [Supabase Auth](https://supabase.com/docs/guides/auth) (تسجيل دخول
-  بالبريد الإلكتروني) وحماية مسار `/admin` بمكوّن يتحقق من الجلسة.
-- تعديل سياسة `insert` في `posts` و `storage.objects` لتقتصر على
-  `to authenticated` بدلاً من `to anon, authenticated`.
-
-يسعدني إضافة هذه الطبقة إذا احتجتها لاحقاً.
-
 ## نشر الموقع (اختياري)
 
 عند النشر على Vercel/Netlify أو أي استضافة ثابتة:
 - أضف نفس متغيرات البيئة (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
   في إعدادات المشروع على منصة الاستضافة.
-- بما أن التنقل بين الصفحات يتم عبر React Router (من جهة العميل)، فعّل
-  "SPA fallback" حتى يعمل تحديث الصفحة على روابط مثل `/post/123` —
-  في Netlify يكون ذلك عبر ملف `public/_redirects` بمحتوى
-  `/* /index.html 200`، وفي Vercel يُكتشف تلقائياً لمشاريع Vite عادةً.
+- بما أن التنقل بين الصفحات يتم عبر React Router (من جهة العميل)، **يجب**
+  تفعيل "SPA fallback" وإلا ستحصل على `404 NOT_FOUND` عند فتح رابط مباشر
+  مثل `/post/123` من جهاز آخر أو عند تحديث الصفحة (وهذا غير مُكتشف تلقائياً
+  دائماً، خلافاً لما ذكرته سابقاً):
+  - **Vercel**: ملف `vercel.json` في جذر المشروع (مرفق في المشروع) بمحتوى:
+    ```json
+    { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+    ```
+  - **Netlify**: ملف `public/_redirects` بمحتوى `/* /index.html 200`.

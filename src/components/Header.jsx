@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
 
 export default function Header() {
   const location = useLocation()
+  const { user } = useAuth()
   const isAdmin = location.pathname.startsWith('/admin')
 
   return (
@@ -36,16 +38,21 @@ export default function Header() {
           >
             المقالات
           </Link>
-          <Link
-            to="/admin"
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              isAdmin
-                ? 'bg-pine-50 text-pine-700'
-                : 'text-stone-500 hover:bg-stone-100 hover:text-ink'
-            }`}
-          >
-            لوحة التحكم
-          </Link>
+          {/* Only shown once signed in — anonymous visitors aren't invited to
+              click their way into the admin area at all. The owner reaches
+              it by navigating to /admin directly, where Login takes over. */}
+          {user && (
+            <Link
+              to="/admin"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isAdmin
+                  ? 'bg-pine-50 text-pine-700'
+                  : 'text-stone-500 hover:bg-stone-100 hover:text-ink'
+              }`}
+            >
+              لوحة التحكم
+            </Link>
+          )}
         </nav>
       </div>
     </header>

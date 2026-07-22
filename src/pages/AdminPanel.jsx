@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, BLOG_IMAGES_BUCKET } from '../lib/supabaseClient'
 import { compressImage } from '../utils/imageCompression'
+import { useAuth } from '../lib/AuthContext'
+import Login from '../components/Login'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const initialForm = { title: '', content: '', videoUrl: '' }
 
 export default function AdminPanel() {
   const navigate = useNavigate()
+  const { user, loading: authLoading, signOut } = useAuth()
 
   const [form, setForm] = useState(initialForm)
   const [imageFile, setImageFile] = useState(null)
@@ -105,12 +109,31 @@ export default function AdminPanel() {
     }
   }
 
+  if (authLoading) {
+    return <LoadingSpinner label="جارٍ التحقق من الجلسة..." />
+  }
+
+  if (!user) {
+    return <Login />
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <h1 className="font-display mb-2 text-2xl font-medium text-ink sm:text-3xl">
-        إضافة مقال جديد
-      </h1>
-      <p className="mb-8 text-stone-500">شارك أفكارك مع القراء بخطوات بسيطة</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display mb-2 text-2xl font-medium text-ink sm:text-3xl">
+            إضافة مقال جديد
+          </h1>
+          <p className="text-stone-500">شارك أفكارك مع القراء بخطوات بسيطة</p>
+        </div>
+        <button
+          type="button"
+          onClick={signOut}
+          className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition-colors hover:bg-stone-100 hover:text-red-600"
+        >
+          تسجيل الخروج
+        </button>
+      </div>
 
       <form
         onSubmit={handleSubmit}

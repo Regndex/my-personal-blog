@@ -20,19 +20,22 @@ create table if not exists public.posts (
 alter table public.posts enable row level security;
 
 -- Anyone (including logged-out visitors) can read posts.
+drop policy if exists "Public can read posts" on public.posts;
 create policy "Public can read posts"
   on public.posts
   for select
   to anon, authenticated
   using (true);
 
--- Anyone can publish a post. This matches the brief (the Admin Panel has no
--- login screen), but it means the /admin route is only "hidden", not
--- protected — see the security note in README.md before deploying publicly.
-create policy "Public can insert posts"
+-- Only a signed-in user can publish. Pair this with disabling public
+-- sign-ups (see README.md) — otherwise anyone could call auth.signUp()
+-- directly and become "authenticated" themselves, sidestepping this.
+drop policy if exists "Public can insert posts" on public.posts;
+drop policy if exists "Authenticated can insert posts" on public.posts;
+create policy "Authenticated can insert posts"
   on public.posts
   for insert
-  to anon, authenticated
+  to authenticated
   with check (true);
 
 
@@ -43,15 +46,18 @@ on conflict (id) do nothing;
 
 -- Public read access, so the uploaded cover images can be displayed on the
 -- site via their public URL.
+drop policy if exists "Public can view blog images" on storage.objects;
 create policy "Public can view blog images"
   on storage.objects
   for select
   to anon, authenticated
   using (bucket_id = 'blog-images');
 
--- Public upload access, mirroring the open "insert posts" policy above.
-create policy "Public can upload blog images"
+-- Only a signed-in user can upload — mirrors the posts policy above.
+drop policy if exists "Public can upload blog images" on storage.objects;
+drop policy if exists "Authenticated can upload blog images" on storage.objects;
+create policy "Authenticated can upload blog images"
   on storage.objects
   for insert
-  to anon, authenticated
+  to authenticated
   with check (bucket_id = 'blog-images');
