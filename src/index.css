@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+  Design tokens for the blog's visual identity: warm paper background,
+  deep ink text, a pine-green accent for interactive elements, and a
+  muted gold accent reserved for editorial details (dates, dividers).
+  Defining them here (Tailwind v4 CSS-first config) auto-generates
+  matching utility classes, e.g. --color-pine-500 -> bg-pine-500/text-pine-500.
+*/
+@theme {
+  --color-paper: #f8f6f2;
+  --color-ink: #24302a;
+
+  --color-pine-50: #eef5f2;
+  --color-pine-100: #dceae4;
+  --color-pine-200: #b4d6c9;
+  --color-pine-400: #4e9484;
+  --color-pine-500: #2c6e5e;
+  --color-pine-600: #235849;
+  --color-pine-700: #1b4438;
+
+  --color-gold-50: #f8f0e2;
+  --color-gold-400: #c89a56;
+  --color-gold-500: #a9793d;
+  --color-gold-600: #8a6130;
+
+  /* Three type roles used with intention:
+     display = the wordmark only, sans = headings/UI, serif = long-form reading */
+  --font-display: "Reem Kufi", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "El Messiri", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Noto Naskh Arabic", ui-serif, "Times New Roman", serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+
+  /* Consistent, visible keyboard focus across the app */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-pine-500);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
