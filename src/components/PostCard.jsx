@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { formatDate } from '../utils/formatDate'
 import { getExcerpt } from '../utils/excerpt'
+import TagPills from './TagPills'
 
 export default function PostCard({ post }) {
   return (
@@ -36,6 +37,11 @@ export default function PostCard({ post }) {
         <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-stone-500">
           {getExcerpt(post.content)}
         </p>
+        {post.tags?.length > 0 && (
+          <div className="mt-3">
+            <TagPills tags={post.tags} />
+          </div>
+        )}
       </div>
     </Link>
   )

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PostCard from '../components/PostCard'
 import SearchBar from '../components/SearchBar'
+import TagPills from '../components/TagPills'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
+  const [activeTag, setActiveTag] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -38,11 +40,20 @@ export default function Home() {
     }
   }, [])
 
+  const allTags = useMemo(() => {
+    const set = new Set()
+    posts.forEach((post) => post.tags?.forEach((tag) => set.add(tag)))
+    return Array.from(set)
+  }, [posts])
+
   const filteredPosts = useMemo(() => {
     const trimmed = query.trim().toLowerCase()
-    if (!trimmed) return posts
-    return posts.filter((post) => post.title?.toLowerCase().includes(trimmed))
-  }, [posts, query])
+    return posts.filter((post) => {
+      const matchesQuery = !trimmed || post.title?.toLowerCase().includes(trimmed)
+      const matchesTag = !activeTag || post.tags?.includes(activeTag)
+      return matchesQuery && matchesTag
+    })
+  }, [posts, query, activeTag])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -55,9 +66,15 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="mx-auto mb-10 max-w-md">
+      <div className="mx-auto mb-6 max-w-md">
         <SearchBar value={query} onChange={setQuery} />
       </div>
+
+      {allTags.length > 0 && (
+        <div className="mb-10 flex justify-center">
+          <TagPills tags={allTags} activeTag={activeTag} onSelect={setActiveTag} size="md" />
+        </div>
+      )}
 
       {loading && <LoadingSpinner label="جارٍ تحميل المقالات..." />}
 
@@ -69,8 +86,8 @@ export default function Home() {
 
       {!loading && !error && filteredPosts.length === 0 && (
         <div className="py-16 text-center text-stone-400">
-          {query
-            ? 'لا توجد نتائج مطابقة لبحثك'
+          {query || activeTag
+            ? 'لا توجد نتائج مطابقة'
             : 'لا توجد مقالات بعد — ابدأ بنشر أول مقال من لوحة التحكم'}
         </div>
       )}

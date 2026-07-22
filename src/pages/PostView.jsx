@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { formatDate } from '../utils/formatDate'
+import { renderPostContent } from '../utils/markdown'
 import VideoEmbed from '../components/VideoEmbed'
 import LoadingSpinner from '../components/LoadingSpinner'
+import TagPills from '../components/TagPills'
+import CommentSection from '../components/CommentSection'
 
 export default function PostView() {
   const { id } = useParams()
@@ -39,6 +42,11 @@ export default function PostView() {
       isMounted = false
     }
   }, [id])
+
+  // Only ever run post *content* through the Markdown renderer — it's
+  // written exclusively by the authenticated owner. Comments, by contrast,
+  // are rendered as plain text elsewhere since they come from the public.
+  const contentHtml = useMemo(() => renderPostContent(post?.content), [post?.content])
 
   if (loading) {
     return <LoadingSpinner label="جارٍ تحميل المقال..." />
@@ -89,20 +97,24 @@ export default function PostView() {
         <p className="mb-3 text-sm font-medium tracking-wide text-gold-600">
           {formatDate(post.created_at)}
         </p>
-        <h1 className="text-2xl font-bold leading-snug text-ink sm:text-3xl lg:text-4xl">
+        <h1 className="mb-4 text-2xl font-bold leading-snug text-ink sm:text-3xl lg:text-4xl">
           {post.title}
         </h1>
+        <TagPills tags={post.tags} size="md" />
       </header>
 
-      <div className="font-serif whitespace-pre-wrap text-[17px] leading-8 text-ink/90">
-        {post.content}
-      </div>
+      <div
+        className="post-content font-serif text-[17px] leading-8 text-ink/90"
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
+      />
 
       {post.video_url && (
         <div className="mt-10">
           <VideoEmbed url={post.video_url} />
         </div>
       )}
+
+      <CommentSection postId={post.id} />
     </article>
   )
 }

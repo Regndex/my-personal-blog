@@ -38,8 +38,86 @@ create policy "Authenticated can insert posts"
   to authenticated
   with check (true);
 
+-- Editing and deleting existing posts — same authenticated-only rule.
+drop policy if exists "Authenticated can update posts" on public.posts;
+create policy "Authenticated can update posts"
+  on public.posts
+  for update
+  to authenticated
+  using (true)
+  with check (true);
 
--- 2) Storage bucket: blog-images ---------------------------------------------
+drop policy if exists "Authenticated can delete posts" on public.posts;
+create policy "Authenticated can delete posts"
+  on public.posts
+  for delete
+  to authenticated
+  using (true);
+
+-- Tags/categories: a simple text array (e.g. '{"سفر","يوميات"}'), rather
+-- than a separate categories table — plenty for a single-author blog and
+-- avoids an extra join for every listing query.
+alter table public.posts add column if not exists tags text[] not null default '{}';
+
+
+-- 2) Table: comments ----------------------------------------------------------
+create table if not exists public.comments (
+  id           uuid primary key default gen_random_uuid(),
+  post_id      uuid not null references public.posts(id) on delete cascade,
+  author_name  text not null,
+  content      text not null,
+  is_approved  boolean not null default false,
+  created_at   timestamptz not null default now()
+);
+
+alter table public.comments enable row level security;
+
+-- Visitors only ever see approved comments...
+drop policy if exists "Public can read approved comments" on public.comments;
+create policy "Public can read approved comments"
+  on public.comments
+  for select
+  to anon, authenticated
+  using (is_approved = true);
+
+-- ...but the signed-in owner sees everything, to moderate pending ones.
+-- (Both SELECT policies apply to `authenticated` and are OR'd together by
+-- Postgres, so a signed-in user matches this broader one regardless.)
+drop policy if exists "Authenticated can read all comments" on public.comments;
+create policy "Authenticated can read all comments"
+  on public.comments
+  for select
+  to authenticated
+  using (true);
+
+-- Anyone can submit a comment, but it is forced to start unapproved —
+-- `with check` is enforced server-side, so a visitor cannot self-approve
+-- even by calling the API directly with is_approved: true in the payload.
+drop policy if exists "Public can insert comments" on public.comments;
+create policy "Public can insert comments"
+  on public.comments
+  for insert
+  to anon, authenticated
+  with check (is_approved = false);
+
+-- Only the owner can approve (update) or remove (delete) comments.
+drop policy if exists "Authenticated can update comments" on public.comments;
+create policy "Authenticated can update comments"
+  on public.comments
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+drop policy if exists "Authenticated can delete comments" on public.comments;
+create policy "Authenticated can delete comments"
+  on public.comments
+  for delete
+  to authenticated
+  using (true);
+
+
+-- 3) Storage bucket: blog-images ---------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('blog-images', 'blog-images', true)
 on conflict (id) do nothing;
@@ -61,3 +139,11 @@ create policy "Authenticated can upload blog images"
   for insert
   to authenticated
   with check (bucket_id = 'blog-images');
+
+-- Deleting a post's cover image from Storage when the post itself is deleted.
+drop policy if exists "Authenticated can delete blog images" on storage.objects;
+create policy "Authenticated can delete blog images"
+  on storage.objects
+  for delete
+  to authenticated
+  using (bucket_id = 'blog-images');
