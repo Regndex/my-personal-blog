@@ -7,6 +7,7 @@ const TABS = [
   { to: '/admin', label: 'مقال جديد', end: true },
   { to: '/admin/posts', label: 'إدارة المقالات' },
   { to: '/admin/comments', label: 'التعليقات' },
+  { to: '/admin/stats', label: 'الإحصائيات' },
 ]
 
 export default function AdminLayout() {
@@ -35,8 +36,8 @@ export default function AdminLayout() {
                 to={tab.to}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-pine-50 text-pine-700'
-                    : 'text-stone-500 hover:bg-stone-100 hover:text-ink'
+                    ? 'bg-pine-50 text-pine-700 dark:bg-pine-500/15 dark:text-pine-400'
+                    : 'text-stone-500 hover:bg-stone-100 hover:text-ink dark:hover:bg-white/5'
                 }`}
               >
                 {tab.label}
@@ -47,7 +48,7 @@ export default function AdminLayout() {
         <button
           type="button"
           onClick={signOut}
-          className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition-colors hover:bg-stone-100 hover:text-red-600"
+          className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition-colors hover:bg-stone-100 hover:text-red-600 dark:hover:bg-white/5"
         >
           تسجيل الخروج
         </button>

@@ -30,13 +30,25 @@ function youtubeEmbedHtml(videoId) {
   )
 }
 
+// Strips the most common inline Markdown markers, for clean table-of-contents
+// labels (the rendered heading itself still gets full inline formatting).
+function stripInlineMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+}
+
 /**
  * Renders post content (Markdown) to sanitized HTML, ready for
- * dangerouslySetInnerHTML. Two things beyond plain Markdown:
+ * dangerouslySetInnerHTML, and returns the headings found (for the
+ * auto table of contents) with IDs matching the rendered <h1-3> tags.
  *
- * 1. A bare YouTube URL on its own line is auto-embedded as a responsive
- *    player, wherever it appears in the text — this is what lets an author
- *    drop a video "anywhere in the article" instead of only at the end.
+ * Beyond plain Markdown:
+ * 1. A bare YouTube URL on its own line auto-embeds as a responsive
+ *    player, wherever it appears — lets an author drop a video "anywhere
+ *    in the article" instead of only at the end.
  * 2. Standard Markdown image syntax `![alt](url)` places an inline image
  *    at that exact point in the text.
  *
@@ -45,7 +57,19 @@ function youtubeEmbedHtml(videoId) {
  * always be rendered as plain text, never through this function.
  */
 export function renderPostContent(content) {
-  if (!content) return ''
+  if (!content) return { html: '', headings: [] }
+
+  const headings = []
+  let headingIndex = 0
+
+  const renderer = new marked.Renderer()
+  renderer.heading = ({ text, depth }) => {
+    const id = `heading-${headingIndex++}`
+    if (depth <= 3) {
+      headings.push({ id, text: stripInlineMarkdown(text), level: depth })
+    }
+    return `<h${depth} id="${id}">${marked.parseInline(text)}</h${depth}>\n`
+  }
 
   const videoIds = []
   const withPlaceholders = content.replace(YOUTUBE_LINE_PATTERN, (match) => {
@@ -56,7 +80,7 @@ export function renderPostContent(content) {
     return token
   })
 
-  let html = marked.parse(withPlaceholders)
+  let html = marked.parse(withPlaceholders, { renderer })
 
   videoIds.forEach((videoId, index) => {
     const token = `@@YOUTUBE_EMBED_${index}@@`
@@ -68,8 +92,10 @@ export function renderPostContent(content) {
       : html
   })
 
-  return DOMPurify.sanitize(html, {
+  const sanitized = DOMPurify.sanitize(html, {
     ADD_TAGS: ['iframe'],
     ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'src', 'title'],
   })
+
+  return { html: sanitized, headings }
 }

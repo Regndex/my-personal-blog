@@ -25,7 +25,7 @@ export default function VideoEmbed({ url }) {
 
   if (!videoId) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-500">
+      <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-500 dark:border-stone-700 dark:bg-white/5 dark:text-stone-400">
         تعذر تضمين هذا الفيديو مباشرة —{' '}
         <a
           href={url}

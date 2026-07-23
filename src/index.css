@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4 syntax) — toggled by useTheme.js */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
   Design tokens for the blog's visual identity: warm paper background,
   deep ink text, a pine-green accent for interactive elements, and a
@@ -10,6 +13,7 @@
 @theme {
   --color-paper: #f8f6f2;
   --color-ink: #24302a;
+  --color-surface: #ffffff;
 
   --color-pine-50: #eef5f2;
   --color-pine-100: #dceae4;
@@ -29,6 +33,33 @@
   --font-display: "Reem Kufi", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "El Messiri", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Noto Naskh Arabic", ui-serif, "Times New Roman", serif;
+}
+
+/*
+  Dark mode: the SAME variable names are redefined here, so every utility
+  built on them (bg-paper, text-ink, bg-pine-500, ...) repaints automatically
+  the moment .dark lands on <html> — no dark: variants needed for anything
+  already using these tokens. Accent shades are flipped lighter-on-hover
+  instead of darker-on-hover, since darkening further would reduce contrast
+  against a dark background.
+*/
+.dark {
+  --color-paper: #191d1b;
+  --color-ink: #e9e7e1;
+  --color-surface: #232823;
+
+  --color-pine-50: #1b2b25;
+  --color-pine-100: #20362e;
+  --color-pine-200: #2c4a3f;
+  --color-pine-400: #6bb5a3;
+  --color-pine-500: #5aab99;
+  --color-pine-600: #7cc4b3;
+  --color-pine-700: #9ad6c7;
+
+  --color-gold-50: #2b2116;
+  --color-gold-400: #d9b273;
+  --color-gold-500: #ceac71;
+  --color-gold-600: #e2c68f;
 }
 
 @layer base {

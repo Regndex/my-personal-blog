@@ -3,7 +3,10 @@ import { supabase } from '../lib/supabaseClient'
 import PostCard from '../components/PostCard'
 import SearchBar from '../components/SearchBar'
 import TagPills from '../components/TagPills'
+import Pagination from '../components/Pagination'
 import LoadingSpinner from '../components/LoadingSpinner'
+
+const POSTS_PER_PAGE = 9
 
 export default function Home() {
   const [posts, setPosts] = useState([])
@@ -11,6 +14,7 @@ export default function Home() {
   const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
   const [activeTag, setActiveTag] = useState(null)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     let isMounted = true
@@ -22,7 +26,7 @@ export default function Home() {
       const { data, error: fetchError } = await supabase
         .from('posts')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('published_at', { ascending: false })
 
       if (!isMounted) return
 
@@ -55,6 +59,15 @@ export default function Home() {
     })
   }, [posts, query, activeTag])
 
+  // Any change to the search/tag filter should snap back to page 1 —
+  // otherwise you could land on an empty page 3 after narrowing results.
+  useEffect(() => {
+    setPage(1)
+  }, [query, activeTag])
+
+  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / POSTS_PER_PAGE))
+  const pagePosts = filteredPosts.slice((page - 1) * POSTS_PER_PAGE, page * POSTS_PER_PAGE)
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
       <div className="mb-10 text-center">
@@ -79,7 +92,7 @@ export default function Home() {
       {loading && <LoadingSpinner label="جارٍ تحميل المقالات..." />}
 
       {!loading && error && (
-        <div className="mx-auto max-w-md rounded-xl border border-red-100 bg-red-50 p-4 text-center text-red-600">
+        <div className="mx-auto max-w-md rounded-xl border border-red-100 bg-red-50 p-4 text-center text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
           تعذر تحميل المقالات: {error}
         </div>
       )}
@@ -93,11 +106,14 @@ export default function Home() {
       )}
 
       {!loading && !error && filteredPosts.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {pagePosts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        </>
       )}
     </div>
   )

@@ -1,18 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { formatDate } from '../utils/formatDate'
 import { renderPostContent } from '../utils/markdown'
+import { estimateReadingTime } from '../utils/readingTime'
+import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import VideoEmbed from '../components/VideoEmbed'
 import LoadingSpinner from '../components/LoadingSpinner'
 import TagPills from '../components/TagPills'
 import CommentSection from '../components/CommentSection'
+import TableOfContents from '../components/TableOfContents'
+import ShareButtons from '../components/ShareButtons'
+import LikeButton from '../components/LikeButton'
+import RelatedPosts from '../components/RelatedPosts'
+import PostNavigation from '../components/PostNavigation'
 
 export default function PostView() {
   const { id } = useParams()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const hasCountedView = useRef(false)
 
   useEffect(() => {
     let isMounted = true
@@ -43,10 +51,28 @@ export default function PostView() {
     }
   }, [id])
 
+  // Count a view once per mount (not once per component instance re-render).
+  useEffect(() => {
+    if (post && !hasCountedView.current) {
+      hasCountedView.current = true
+      supabase.rpc('increment_post_views', { post_id: post.id })
+    }
+  }, [post])
+
   // Only ever run post *content* through the Markdown renderer — it's
   // written exclusively by the authenticated owner. Comments, by contrast,
   // are rendered as plain text elsewhere since they come from the public.
-  const contentHtml = useMemo(() => renderPostContent(post?.content), [post?.content])
+  const { html: contentHtml, headings } = useMemo(
+    () => renderPostContent(post?.content),
+    [post?.content]
+  )
+  const readingMinutes = useMemo(() => estimateReadingTime(post?.content), [post?.content])
+
+  useDocumentMeta({
+    title: post?.title,
+    description: post?.content?.slice(0, 150),
+    image: post?.image_url,
+  })
 
   if (loading) {
     return <LoadingSpinner label="جارٍ تحميل المقال..." />
@@ -81,7 +107,7 @@ export default function PostView() {
       </Link>
 
       {post.image_url && (
-        <div className="mb-8 overflow-hidden rounded-2xl bg-stone-100">
+        <div className="mb-8 overflow-hidden rounded-2xl bg-stone-100 dark:bg-stone-800">
           <img
             src={post.image_url}
             alt={post.title}
@@ -94,14 +120,24 @@ export default function PostView() {
       )}
 
       <header className="mb-8">
-        <p className="mb-3 text-sm font-medium tracking-wide text-gold-600">
-          {formatDate(post.created_at)}
+        <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium tracking-wide text-gold-600">
+          <span>{formatDate(post.published_at || post.created_at)}</span>
+          <span className="text-stone-300 dark:text-stone-600">·</span>
+          <span>{readingMinutes} دقائق قراءة</span>
+          {post.views_count > 0 && (
+            <>
+              <span className="text-stone-300 dark:text-stone-600">·</span>
+              <span>{post.views_count} مشاهدة</span>
+            </>
+          )}
         </p>
         <h1 className="mb-4 text-2xl font-bold leading-snug text-ink sm:text-3xl lg:text-4xl">
           {post.title}
         </h1>
         <TagPills tags={post.tags} size="md" />
       </header>
+
+      <TableOfContents headings={headings} />
 
       <div
         className="post-content font-serif text-[17px] leading-8 text-ink/90"
@@ -114,6 +150,13 @@ export default function PostView() {
         </div>
       )}
 
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 dark:border-stone-700">
+        <LikeButton postId={post.id} initialCount={post.likes_count} />
+        <ShareButtons title={post.title} url={window.location.href} />
+      </div>
+
+      <PostNavigation currentPost={post} />
+      <RelatedPosts currentPost={post} />
       <CommentSection postId={post.id} />
     </article>
   )

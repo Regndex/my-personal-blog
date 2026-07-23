@@ -5,7 +5,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 
 function CommentRow({ comment, busy, onApprove, onDelete }) {
   return (
-    <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-surface">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-bold text-ink">{comment.author_name}</p>
@@ -19,7 +19,7 @@ function CommentRow({ comment, busy, onApprove, onDelete }) {
               type="button"
               disabled={busy}
               onClick={() => onApprove(comment)}
-              className="rounded-full px-3 py-1.5 text-sm font-medium text-pine-600 transition-colors hover:bg-pine-50 disabled:opacity-50"
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-pine-600 transition-colors hover:bg-pine-50 disabled:opacity-50 dark:hover:bg-pine-500/10"
             >
               قبول
             </button>
@@ -28,7 +28,7 @@ function CommentRow({ comment, busy, onApprove, onDelete }) {
             type="button"
             disabled={busy}
             onClick={() => onDelete(comment)}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+            className="rounded-full px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-500/10"
           >
             حذف
           </button>

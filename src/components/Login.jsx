@@ -31,7 +31,7 @@ export default function Login() {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8"
+        className="space-y-4 rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-stone-700 dark:bg-surface"
       >
         <div>
           <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">
@@ -44,7 +44,7 @@ export default function Login() {
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-stone-200 px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+            className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
           />
         </div>
 
@@ -59,12 +59,12 @@ export default function Login() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-xl border border-stone-200 px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+            className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
           />
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
             {error}
           </div>
         )}

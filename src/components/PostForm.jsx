@@ -1,12 +1,25 @@
 import { useState } from 'react'
 import { supabase, BLOG_IMAGES_BUCKET } from '../lib/supabaseClient'
 import { compressImage } from '../utils/imageCompression'
+import PostPreview from './PostPreview'
 
 function parseTags(input) {
   return input
     .split(/[,،]/)
     .map((tag) => tag.trim())
     .filter(Boolean)
+}
+
+function toDatetimeLocalValue(isoString) {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function initialPublishMode(publishedAt) {
+  if (!publishedAt) return 'draft'
+  return new Date(publishedAt) > new Date() ? 'scheduled' : 'now'
 }
 
 /**
@@ -26,6 +39,12 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
   const [imageFile, setImageFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(initialData?.image_url || null)
   const [imageInfo, setImageInfo] = useState(null)
+
+  const [publishMode, setPublishMode] = useState(() => initialPublishMode(initialData?.published_at))
+  const [scheduledAt, setScheduledAt] = useState(() =>
+    initialData?.published_at ? toDatetimeLocalValue(initialData.published_at) : ''
+  )
+  const [showPreview, setShowPreview] = useState(false)
 
   const [compressing, setCompressing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -62,6 +81,13 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
     }
   }
 
+  function resolvePublishedAt() {
+    if (publishMode === 'draft') return null
+    if (publishMode === 'now') return new Date().toISOString()
+    if (!scheduledAt) return null
+    return new Date(scheduledAt).toISOString()
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setError(null)
@@ -69,6 +95,11 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
 
     if (!form.title.trim() || !form.content.trim()) {
       setError('العنوان ونص المقال حقلان مطلوبان')
+      return
+    }
+
+    if (publishMode === 'scheduled' && !scheduledAt) {
+      setError('اختر تاريخ ووقت الجدولة')
       return
     }
 
@@ -100,6 +131,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         image_url: imageUrl,
         video_url: form.videoUrl.trim() || null,
         tags: parseTags(form.tags),
+        published_at: resolvePublishedAt(),
       })
 
       setSuccess(true)
@@ -110,10 +142,37 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
     }
   }
 
+  const publishOptions = [
+    { value: 'draft', label: 'مسودة' },
+    { value: 'now', label: 'نشر الآن' },
+    { value: 'scheduled', label: 'جدولة' },
+  ]
+
+  if (showPreview) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowPreview(false)}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-pine-600 hover:underline"
+        >
+          ← العودة للتحرير
+        </button>
+        <PostPreview
+          title={form.title}
+          content={form.content}
+          imageUrl={previewUrl}
+          tags={parseTags(form.tags)}
+          videoUrl={form.videoUrl}
+        />
+      </div>
+    )
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8"
+      className="space-y-6 rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-stone-700 dark:bg-surface"
     >
       <div>
         <label htmlFor="title" className="mb-2 block text-sm font-medium text-ink">
@@ -125,21 +184,30 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           value={form.title}
           onChange={(event) => updateField('title', event.target.value)}
           placeholder="عنوان جذاب لمقالك..."
-          className="w-full rounded-xl border border-stone-200 px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+          className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
       </div>
 
       <div>
-        <label htmlFor="content" className="mb-2 block text-sm font-medium text-ink">
-          نص المقال
-        </label>
+        <div className="mb-2 flex items-center justify-between">
+          <label htmlFor="content" className="block text-sm font-medium text-ink">
+            نص المقال
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            className="text-sm font-medium text-pine-600 hover:underline"
+          >
+            معاينة
+          </button>
+        </div>
         <textarea
           id="content"
           value={form.content}
           onChange={(event) => updateField('content', event.target.value)}
           placeholder="اكتب محتوى مقالك هنا..."
           rows={12}
-          className="w-full resize-y rounded-xl border border-stone-200 px-4 py-3 font-mono text-sm text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+          className="w-full resize-y rounded-xl border border-stone-200 bg-transparent px-4 py-3 font-mono text-sm text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
         <p className="mt-2 text-xs leading-relaxed text-stone-400">
           يدعم Markdown: **عريض**، *مائل*، عنوان بـ <span dir="ltr">## نص</span>، صورة بـ{' '}
@@ -158,7 +226,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           value={form.tags}
           onChange={(event) => updateField('tags', event.target.value)}
           placeholder="سفر، يوميات، تقنية"
-          className="w-full rounded-xl border border-stone-200 px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+          className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
         <p className="mt-2 text-xs text-stone-400">افصل بين الوسوم بفاصلة</p>
       </div>
@@ -166,7 +234,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       <div>
         <span className="mb-2 block text-sm font-medium text-ink">صورة الغلاف</span>
         <div className="flex items-center gap-4">
-          <label className="flex-1 cursor-pointer rounded-xl border-2 border-dashed border-stone-200 px-4 py-6 text-center text-sm text-stone-500 transition hover:border-pine-400 hover:text-pine-600">
+          <label className="flex-1 cursor-pointer rounded-xl border-2 border-dashed border-stone-200 px-4 py-6 text-center text-sm text-stone-500 transition hover:border-pine-400 hover:text-pine-600 dark:border-stone-600">
             <input
               type="file"
               accept="image/*"
@@ -179,7 +247,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
             <img
               src={previewUrl}
               alt="معاينة صورة الغلاف"
-              className="h-20 w-20 shrink-0 rounded-xl border border-stone-200 object-cover"
+              className="h-20 w-20 shrink-0 rounded-xl border border-stone-200 object-cover dark:border-stone-600"
             />
           )}
         </div>
@@ -200,18 +268,53 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           value={form.videoUrl}
           onChange={(event) => updateField('videoUrl', event.target.value)}
           placeholder="https://www.youtube.com/watch?v=..."
-          className="w-full rounded-xl border border-stone-200 px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30"
+          className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
       </div>
 
+      <div>
+        <span className="mb-2 block text-sm font-medium text-ink">حالة النشر</span>
+        <div className="flex flex-wrap gap-2">
+          {publishOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setPublishMode(option.value)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                publishMode === option.value
+                  ? 'bg-pine-500 text-paper'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-white/5 dark:hover:bg-white/10'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {publishMode === 'scheduled' && (
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(event) => setScheduledAt(event.target.value)}
+            className="mt-3 w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
+          />
+        )}
+
+        <p className="mt-2 text-xs text-stone-400">
+          {publishMode === 'draft' && 'يُحفظ ولا يظهر للزوار حتى تنشره لاحقاً.'}
+          {publishMode === 'now' && 'يظهر للزوار فور الحفظ.'}
+          {publishMode === 'scheduled' && 'يظهر للزوار تلقائياً عند حلول الموعد المحدد.'}
+        </p>
+      </div>
+
       {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-xl border border-pine-100 bg-pine-50 px-4 py-3 text-sm text-pine-700">
+        <div className="rounded-xl border border-pine-100 bg-pine-50 px-4 py-3 text-sm text-pine-700 dark:border-pine-500/20 dark:bg-pine-500/10 dark:text-pine-400">
           تم الحفظ بنجاح!
         </div>
       )}

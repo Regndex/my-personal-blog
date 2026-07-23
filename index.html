@@ -7,6 +7,21 @@
     <title>مدونتي | مساحة شخصية للكتابة</title>
     <meta name="description" content="مدونة شخصية لمشاركة الأفكار والمقالات والقصص." />
 
+    <!--
+      Static defaults for link previews (WhatsApp, Telegram, etc.) — these
+      crawlers don't run JavaScript, so they only ever see this generic
+      site-level card, never a specific post's title/image. useDocumentMeta.js
+      updates these tags dynamically too, which covers the browser tab title
+      and any crawler that DOES execute JS, but not the non-JS ones. A fully
+      per-post preview for every crawler needs server-side rendering — see
+      README.md.
+    -->
+    <meta property="og:site_name" content="مدونتي" />
+    <meta property="og:title" content="مدونتي | مساحة شخصية للكتابة" />
+    <meta property="og:description" content="مدونة شخصية لمشاركة الأفكار والمقالات والقصص." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
