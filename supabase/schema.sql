@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Personal Blog — Supabase schema
 -- Run this once in your project's SQL Editor (Supabase Dashboard -> SQL Editor
--- -> New query -> paste -> Run).
+-- -> New query -> paste -> Run). Safe to re-run any time.
 -- ============================================================================
 
 -- 1) Table: posts ------------------------------------------------------------
@@ -16,6 +16,25 @@ create table if not exists public.posts (
   created_at  timestamptz not null default now()
 );
 
+-- All columns are added FIRST, before any policy below references them —
+-- a policy's USING/WITH CHECK expression is validated against the table's
+-- current columns at creation time, so this order genuinely matters.
+
+-- Tags/categories: a simple text array (e.g. '{"سفر","يوميات"}'), rather
+-- than a separate categories table — plenty for a single-author blog and
+-- avoids an extra join for every listing query.
+alter table public.posts add column if not exists tags text[] not null default '{}';
+
+-- Publishing/scheduling: NULL = draft, a future timestamp = scheduled, a
+-- past-or-now timestamp = published. The app sets this value explicitly
+-- depending on which button the author clicks (see the one-time migration
+-- note at the bottom of this file if you have posts from before this).
+alter table public.posts add column if not exists published_at timestamptz;
+
+-- Simple counters for the like button and view counter.
+alter table public.posts add column if not exists likes_count integer not null default 0;
+alter table public.posts add column if not exists views_count integer not null default 0;
+
 -- Row Level Security: locked down by default, opened up explicitly below.
 alter table public.posts enable row level security;
 
@@ -24,6 +43,7 @@ alter table public.posts enable row level security;
 -- future — this is what makes drafts and scheduled posts invisible to the
 -- public while still fully visible to the signed-in owner (next policy).
 drop policy if exists "Public can read posts" on public.posts;
+drop policy if exists "Public can read published posts" on public.posts;
 create policy "Public can read published posts"
   on public.posts
   for select
@@ -66,21 +86,6 @@ create policy "Authenticated can delete posts"
   to authenticated
   using (true);
 
--- Tags/categories: a simple text array (e.g. '{"سفر","يوميات"}'), rather
--- than a separate categories table — plenty for a single-author blog and
--- avoids an extra join for every listing query.
-alter table public.posts add column if not exists tags text[] not null default '{}';
-
--- Publishing/scheduling: NULL = draft, a future timestamp = scheduled, a
--- past-or-now timestamp = published. The app sets this value explicitly
--- depending on which button the author clicks (see README.md for the
--- one-time backfill needed when upgrading an existing project).
-alter table public.posts add column if not exists published_at timestamptz;
-
--- Simple counters for the like button and view counter.
-alter table public.posts add column if not exists likes_count integer not null default 0;
-alter table public.posts add column if not exists views_count integer not null default 0;
-
 -- Atomic increment functions, callable by anyone (including anon visitors).
 -- `security definer` lets them update `likes_count`/`views_count` even
 -- though the general UPDATE policy above is authenticated-only — safe to
@@ -118,7 +123,8 @@ create table if not exists public.comments (
   parent_comment_id  uuid references public.comments(id) on delete cascade
 );
 
--- Upgrading an existing project: add the column if the table already existed.
+-- Upgrading an existing project: add the column if the table already existed
+-- without it (harmless no-op if it's already there from the line above).
 alter table public.comments add column if not exists parent_comment_id uuid
   references public.comments(id) on delete cascade;
 
@@ -203,7 +209,7 @@ create policy "Authenticated can delete blog images"
 
 -- ============================================================================
 -- ONE-TIME MIGRATION — only if you had posts before the drafts/scheduling
--- feature existed. Run this ONCE, by itself, right after the block above.
+-- feature existed. Run this ONCE, by itself, AFTER the block above succeeds.
 --
 -- It treats every already-existing post (which has no `published_at` yet)
 -- as already published at its original creation date, so nothing you've
