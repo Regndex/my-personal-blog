@@ -35,6 +35,22 @@ alter table public.posts add column if not exists published_at timestamptz;
 alter table public.posts add column if not exists likes_count integer not null default 0;
 alter table public.posts add column if not exists views_count integer not null default 0;
 
+-- Readable URL slug (e.g. "فكرة-عن-الكتابة"), generated from the title by
+-- the app at save time. Nullable + a partial unique index (rather than a
+-- plain UNIQUE column) so any pre-existing posts without one yet don't
+-- block each other on the shared NULL value.
+alter table public.posts add column if not exists slug text;
+create unique index if not exists posts_slug_unique_idx
+  on public.posts (slug) where slug is not null;
+
+-- Pin a post to always show first on the home page, regardless of date.
+alter table public.posts add column if not exists is_pinned boolean not null default false;
+
+-- Post series (e.g. "رحلتي إلى اليابان", part 1/2/3) — both nullable;
+-- a post not in a series just leaves these empty.
+alter table public.posts add column if not exists series_name text;
+alter table public.posts add column if not exists series_order integer;
+
 -- Row Level Security: locked down by default, opened up explicitly below.
 alter table public.posts enable row level security;
 
@@ -175,7 +191,39 @@ create policy "Authenticated can delete comments"
   using (true);
 
 
--- 3) Storage bucket: blog-images ---------------------------------------------
+-- 3) Table: post_revisions ----------------------------------------------------
+-- A snapshot of a post's fields taken right before each edit is saved (see
+-- the app's EditPost page), so past versions can be reviewed or restored.
+-- No public policy at all here — purely an admin/owner-facing feature.
+create table if not exists public.post_revisions (
+  id          uuid primary key default gen_random_uuid(),
+  post_id     uuid not null references public.posts(id) on delete cascade,
+  title       text not null,
+  content     text not null,
+  image_url   text,
+  video_url   text,
+  tags        text[],
+  created_at  timestamptz not null default now()
+);
+
+alter table public.post_revisions enable row level security;
+
+drop policy if exists "Authenticated can read revisions" on public.post_revisions;
+create policy "Authenticated can read revisions"
+  on public.post_revisions
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Authenticated can insert revisions" on public.post_revisions;
+create policy "Authenticated can insert revisions"
+  on public.post_revisions
+  for insert
+  to authenticated
+  with check (true);
+
+
+-- 4) Storage bucket: blog-images ---------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('blog-images', 'blog-images', true)
 on conflict (id) do nothing;
@@ -221,3 +269,16 @@ create policy "Authenticated can delete blog images"
 -- look identical at the database level.
 -- ============================================================================
 -- update public.posts set published_at = created_at where published_at is null;
+
+
+-- ============================================================================
+-- OPTIONAL ONE-TIME MIGRATION — existing posts from before the readable-slug
+-- feature have no slug yet, so old share links (/post/<uuid>) still work
+-- fine (the app falls back to matching by id), but you can backfill slugs
+-- for them too if you'd like prettier links for old posts. Safe to run more
+-- than once (only fills rows that are still empty); a slug collision this
+-- simple backfill can't fully dedupe on its own, so check afterward.
+-- ============================================================================
+-- update public.posts
+-- set slug = regexp_replace(trim(title), '\s+', '-', 'g')
+-- where slug is null;

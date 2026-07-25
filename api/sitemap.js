@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     const { data: posts } = await supabase
       .from('posts')
-      .select('id, published_at')
+      .select('id, slug, published_at')
       .not('published_at', 'is', null)
       .lte('published_at', new Date().toISOString())
 
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       .map(
         (post) => `
   <url>
-    <loc>${siteUrl}/post/${post.id}</loc>
+    <loc>${siteUrl}/post/${post.slug || post.id}</loc>
     <lastmod>${new Date(post.published_at).toISOString()}</lastmod>
   </url>`
       )

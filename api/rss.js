@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const { data: posts } = await supabase
       .from('posts')
-      .select('id, title, content, published_at')
+      .select('id, slug, title, content, published_at')
       .not('published_at', 'is', null)
       .lte('published_at', new Date().toISOString())
       .order('published_at', { ascending: false })
@@ -36,8 +36,8 @@ export default async function handler(req, res) {
         (post) => `
   <item>
     <title>${escapeXml(post.title)}</title>
-    <link>${siteUrl}/post/${post.id}</link>
-    <guid>${siteUrl}/post/${post.id}</guid>
+    <link>${siteUrl}/post/${post.slug || post.id}</link>
+    <guid isPermaLink="false">${post.id}</guid>
     <pubDate>${new Date(post.published_at).toUTCString()}</pubDate>
     <description>${escapeXml((post.content || '').slice(0, 300))}</description>
   </item>`

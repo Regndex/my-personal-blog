@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import Header from './components/Header'
 import AdminLayout from './components/AdminLayout'
+import NotFound from './components/NotFound'
 import Home from './pages/Home'
 import PostView from './pages/PostView'
 import Archive from './pages/Archive'
@@ -28,7 +29,7 @@ export default function App() {
             <Route path="stats" element={<Stats />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
     </div>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase, BLOG_IMAGES_BUCKET } from '../lib/supabaseClient'
 import { compressImage } from '../utils/imageCompression'
 import PostPreview from './PostPreview'
+import ImagePicker from './ImagePicker'
 
 function parseTags(input) {
   return input
@@ -22,6 +23,10 @@ function initialPublishMode(publishedAt) {
   return new Date(publishedAt) > new Date() ? 'scheduled' : 'now'
 }
 
+function autosaveKey(postId) {
+  return `blog-draft-autosave-${postId || 'new'}`
+}
+
 /**
  * Shared create/edit form.
  * - Pass `initialData` (an existing post row) to pre-fill for editing.
@@ -30,15 +35,21 @@ function initialPublishMode(publishedAt) {
  *   success (the parent page decides what happens next, e.g. navigating).
  */
 export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ' }) {
+  const storageKey = autosaveKey(initialData?.id)
+
   const [form, setForm] = useState({
     title: initialData?.title || '',
     content: initialData?.content || '',
     videoUrl: initialData?.video_url || '',
     tags: initialData?.tags?.join('، ') || '',
+    seriesName: initialData?.series_name || '',
+    seriesOrder: initialData?.series_order ? String(initialData.series_order) : '',
   })
   const [imageFile, setImageFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(initialData?.image_url || null)
   const [imageInfo, setImageInfo] = useState(null)
+  const [isPinned, setIsPinned] = useState(initialData?.is_pinned || false)
+  const [showImagePicker, setShowImagePicker] = useState(false)
 
   const [publishMode, setPublishMode] = useState(() => initialPublishMode(initialData?.published_at))
   const [scheduledAt, setScheduledAt] = useState(() =>
@@ -51,8 +62,61 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
 
+  const [restoreBanner, setRestoreBanner] = useState(null)
+  const [lastSavedAt, setLastSavedAt] = useState(null)
+  const skipNextAutosave = useRef(true)
+
+  // On mount, check for a newer autosaved draft than what we're starting
+  // with, and offer to restore it instead of silently overwriting it.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      const isDifferent =
+        saved.title !== (initialData?.title || '') || saved.content !== (initialData?.content || '')
+      if (isDifferent) setRestoreBanner(saved)
+    } catch {
+      /* ignore malformed autosave data */
+    }
+  }, [storageKey, initialData])
+
+  // Debounced autosave to localStorage — not the database, so an abandoned
+  // draft never creates a phantom row. Restored on next visit to this form.
+  useEffect(() => {
+    if (skipNextAutosave.current) {
+      skipNextAutosave.current = false
+      return
+    }
+    const timeout = setTimeout(() => {
+      if (!form.title.trim() && !form.content.trim()) return
+      const snapshot = { ...form, savedAt: new Date().toISOString() }
+      window.localStorage.setItem(storageKey, JSON.stringify(snapshot))
+      setLastSavedAt(snapshot.savedAt)
+    }, 2000)
+    return () => clearTimeout(timeout)
+  }, [form, storageKey])
+
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function restoreAutosave() {
+    if (!restoreBanner) return
+    setForm({
+      title: restoreBanner.title || '',
+      content: restoreBanner.content || '',
+      videoUrl: restoreBanner.videoUrl || '',
+      tags: restoreBanner.tags || '',
+      seriesName: restoreBanner.seriesName || '',
+      seriesOrder: restoreBanner.seriesOrder || '',
+    })
+    setRestoreBanner(null)
+  }
+
+  function discardAutosave() {
+    window.localStorage.removeItem(storageKey)
+    setRestoreBanner(null)
   }
 
   async function handleImageChange(event) {
@@ -81,6 +145,13 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
     }
   }
 
+  function handleLibrarySelect(url) {
+    setImageFile(null)
+    setPreviewUrl(url)
+    setImageInfo(null)
+    setShowImagePicker(false)
+  }
+
   function resolvePublishedAt() {
     if (publishMode === 'draft') return null
     if (publishMode === 'now') return new Date().toISOString()
@@ -106,8 +177,12 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
     setSubmitting(true)
 
     try {
-      let imageUrl = initialData?.image_url || null
+      let imageUrl = previewUrl
 
+      // previewUrl might be: unchanged existing image_url, a library pick
+      // (already a real URL, no upload needed), or a local blob: preview
+      // from a freshly compressed file (imageFile set) that still needs
+      // uploading.
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
         const filePath = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`
@@ -128,12 +203,16 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       await onSubmit({
         title: form.title.trim(),
         content: form.content.trim(),
-        image_url: imageUrl,
+        image_url: imageUrl || null,
         video_url: form.videoUrl.trim() || null,
         tags: parseTags(form.tags),
         published_at: resolvePublishedAt(),
+        is_pinned: isPinned,
+        series_name: form.seriesName.trim() || null,
+        series_order: form.seriesOrder ? parseInt(form.seriesOrder, 10) : null,
       })
 
+      window.localStorage.removeItem(storageKey)
       setSuccess(true)
     } catch (err) {
       setError('حدث خطأ: ' + err.message)
@@ -174,6 +253,30 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       onSubmit={handleSubmit}
       className="space-y-6 rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8 dark:border-stone-700 dark:bg-surface"
     >
+      {restoreBanner && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold-400/40 bg-gold-50 px-4 py-3 text-sm dark:bg-gold-50/10">
+          <span className="text-gold-600">
+            وجدنا نسخة محفوظة تلقائياً لم تُحفظ في المقال بعد. استعادتها؟
+          </span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={restoreAutosave}
+              className="rounded-full bg-gold-500 px-3 py-1 text-xs font-medium text-white"
+            >
+              استعادة
+            </button>
+            <button
+              type="button"
+              onClick={discardAutosave}
+              className="rounded-full px-3 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10"
+            >
+              تجاهل
+            </button>
+          </span>
+        </div>
+      )}
+
       <div>
         <label htmlFor="title" className="mb-2 block text-sm font-medium text-ink">
           عنوان المقال
@@ -193,13 +296,18 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           <label htmlFor="content" className="block text-sm font-medium text-ink">
             نص المقال
           </label>
-          <button
-            type="button"
-            onClick={() => setShowPreview(true)}
-            className="text-sm font-medium text-pine-600 hover:underline"
-          >
-            معاينة
-          </button>
+          <span className="flex items-center gap-3">
+            {lastSavedAt && (
+              <span className="text-xs text-stone-400">حُفظ تلقائياً</span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowPreview(true)}
+              className="text-sm font-medium text-pine-600 hover:underline"
+            >
+              معاينة
+            </button>
+          </span>
         </div>
         <textarea
           id="content"
@@ -210,9 +318,9 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           className="w-full resize-y rounded-xl border border-stone-200 bg-transparent px-4 py-3 font-mono text-sm text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
         <p className="mt-2 text-xs leading-relaxed text-stone-400">
-          يدعم Markdown: **عريض**، *مائل*، عنوان بـ <span dir="ltr">## نص</span>، صورة بـ{' '}
-          <span dir="ltr">![وصف](رابط)</span>. الصق رابط يوتيوب في سطر منفرد لتضمينه كفيديو في
-          مكانه بالضبط.
+          يدعم Markdown: **عريض**، *مائل*، عنوان بـ <span dir="ltr">## نص</span>، كود بثلاث
+          علامات <span dir="ltr">```</span>، صورة بـ <span dir="ltr">![وصف](رابط)</span>. الصق
+          رابط يوتيوب في سطر منفرد لتضمينه كفيديو في مكانه بالضبط.
         </p>
       </div>
 
@@ -231,6 +339,36 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         <p className="mt-2 text-xs text-stone-400">افصل بين الوسوم بفاصلة</p>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="seriesName" className="mb-2 block text-sm font-medium text-ink">
+            اسم السلسلة (اختياري)
+          </label>
+          <input
+            id="seriesName"
+            type="text"
+            value={form.seriesName}
+            onChange={(event) => updateField('seriesName', event.target.value)}
+            placeholder="رحلتي إلى اليابان"
+            className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
+          />
+        </div>
+        <div>
+          <label htmlFor="seriesOrder" className="mb-2 block text-sm font-medium text-ink">
+            ترتيبه في السلسلة
+          </label>
+          <input
+            id="seriesOrder"
+            type="number"
+            min="1"
+            value={form.seriesOrder}
+            onChange={(event) => updateField('seriesOrder', event.target.value)}
+            placeholder="1"
+            className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
+          />
+        </div>
+      </div>
+
       <div>
         <span className="mb-2 block text-sm font-medium text-ink">صورة الغلاف</span>
         <div className="flex items-center gap-4">
@@ -241,8 +379,15 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
               onChange={handleImageChange}
               className="hidden"
             />
-            {compressing ? 'جارٍ ضغط الصورة...' : 'اضغط لاختيار صورة'}
+            {compressing ? 'جارٍ ضغط الصورة...' : 'اضغط لرفع صورة جديدة'}
           </label>
+          <button
+            type="button"
+            onClick={() => setShowImagePicker(true)}
+            className="h-full shrink-0 rounded-xl border border-stone-200 px-4 py-6 text-sm text-stone-500 transition hover:border-pine-400 hover:text-pine-600 dark:border-stone-600"
+          >
+            من المكتبة
+          </button>
           {previewUrl && (
             <img
               src={previewUrl}
@@ -271,6 +416,16 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
           className="w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
         />
       </div>
+
+      <label className="flex cursor-pointer items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={isPinned}
+          onChange={(event) => setIsPinned(event.target.checked)}
+          className="h-4 w-4 rounded border-stone-300 text-pine-600 focus:ring-pine-500"
+        />
+        <span className="text-sm font-medium text-ink">تثبيت المقال أعلى الصفحة الرئيسية</span>
+      </label>
 
       <div>
         <span className="mb-2 block text-sm font-medium text-ink">حالة النشر</span>
@@ -326,6 +481,10 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       >
         {submitting ? 'جارٍ الحفظ...' : submitLabel}
       </button>
+
+      {showImagePicker && (
+        <ImagePicker onSelect={handleLibrarySelect} onClose={() => setShowImagePicker(false)} />
+      )}
     </form>
   )
 }

@@ -52,11 +52,18 @@ export default function Home() {
 
   const filteredPosts = useMemo(() => {
     const trimmed = query.trim().toLowerCase()
-    return posts.filter((post) => {
-      const matchesQuery = !trimmed || post.title?.toLowerCase().includes(trimmed)
+    const filtered = posts.filter((post) => {
+      const matchesQuery =
+        !trimmed ||
+        post.title?.toLowerCase().includes(trimmed) ||
+        post.content?.toLowerCase().includes(trimmed)
       const matchesTag = !activeTag || post.tags?.includes(activeTag)
       return matchesQuery && matchesTag
     })
+
+    // Pinned posts always float to the top; within each group the existing
+    // published_at-desc order (from the initial fetch) is preserved.
+    return [...filtered].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0))
   }, [posts, query, activeTag])
 
   // Any change to the search/tag filter should snap back to page 1 —

@@ -7,7 +7,7 @@ import TagPills from './TagPills'
 export default function PostCard({ post }) {
   return (
     <Link
-      to={`/post/${post.id}`}
+      to={`/post/${post.slug || post.id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm transition-shadow duration-300 hover:shadow-lg dark:border-stone-700 dark:bg-surface"
     >
       <div className="aspect-[16/10] overflow-hidden bg-stone-100 dark:bg-stone-800">
@@ -30,6 +30,11 @@ export default function PostCard({ post }) {
 
       <div className="flex flex-1 flex-col p-5">
         <span className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gold-600">
+          {post.is_pinned && (
+            <span className="rounded-full bg-pine-50 px-2 py-0.5 text-pine-700 dark:bg-pine-500/15 dark:text-pine-400">
+              مثبّت
+            </span>
+          )}
           <span>{formatDate(post.published_at || post.created_at)}</span>
           <span className="text-stone-300 dark:text-stone-600">·</span>
           <span>{estimateReadingTime(post.content)} د</span>

@@ -174,6 +174,40 @@
   background: transparent;
   padding: 0;
 }
+
+/* Custom highlight.js theme, using the site's own tokens instead of a
+   stock theme so code blocks stay visually consistent (and adapt to dark
+   mode automatically, same as everything else built on these variables). */
+.hljs-comment {
+  color: var(--color-ink);
+  opacity: 0.45;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-built_in {
+  color: var(--color-pine-600);
+  font-weight: 600;
+}
+.hljs-string {
+  color: var(--color-gold-600);
+}
+.hljs-number,
+.hljs-literal {
+  color: var(--color-pine-400);
+}
+.hljs-title,
+.hljs-section {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+.hljs-property,
+.hljs-attr {
+  color: var(--color-gold-500);
+}
+.hljs-variable.language_ {
+  color: var(--color-pine-500);
+  font-style: italic;
+}
 .post-content .video-embed-wrapper {
   position: relative;
   aspect-ratio: 16 / 9;

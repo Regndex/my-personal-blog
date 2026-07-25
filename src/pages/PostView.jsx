@@ -5,6 +5,8 @@ import { formatDate } from '../utils/formatDate'
 import { renderPostContent } from '../utils/markdown'
 import { estimateReadingTime } from '../utils/readingTime'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
+import { useStructuredData } from '../hooks/useStructuredData'
+import { useSyntaxHighlight } from '../hooks/useSyntaxHighlight'
 import VideoEmbed from '../components/VideoEmbed'
 import LoadingSpinner from '../components/LoadingSpinner'
 import TagPills from '../components/TagPills'
@@ -14,13 +16,17 @@ import ShareButtons from '../components/ShareButtons'
 import LikeButton from '../components/LikeButton'
 import RelatedPosts from '../components/RelatedPosts'
 import PostNavigation from '../components/PostNavigation'
+import SeriesNav from '../components/SeriesNav'
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default function PostView() {
-  const { id } = useParams()
+  const { id: param } = useParams()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const hasCountedView = useRef(false)
+  const contentRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true
@@ -29,10 +35,15 @@ export default function PostView() {
       setLoading(true)
       setNotFound(false)
 
+      // Supports both a UUID (old share links, before the slug feature
+      // existed) and a readable slug (new links), so nothing already
+      // shared ever breaks.
+      const column = UUID_PATTERN.test(param) ? 'id' : 'slug'
+
       const { data, error } = await supabase
         .from('posts')
         .select('*')
-        .eq('id', id)
+        .eq(column, param)
         .maybeSingle()
 
       if (!isMounted) return
@@ -49,7 +60,7 @@ export default function PostView() {
     return () => {
       isMounted = false
     }
-  }, [id])
+  }, [param])
 
   // Count a view once per mount (not once per component instance re-render).
   useEffect(() => {
@@ -73,6 +84,8 @@ export default function PostView() {
     description: post?.content?.slice(0, 150),
     image: post?.image_url,
   })
+  useStructuredData(post)
+  useSyntaxHighlight(contentRef, contentHtml)
 
   if (loading) {
     return <LoadingSpinner label="جارٍ تحميل المقال..." />
@@ -137,9 +150,11 @@ export default function PostView() {
         <TagPills tags={post.tags} size="md" />
       </header>
 
+      <SeriesNav seriesName={post.series_name} currentPostId={post.id} />
       <TableOfContents headings={headings} />
 
       <div
+        ref={contentRef}
         className="post-content font-serif text-[17px] leading-8 text-ink/90"
         dangerouslySetInnerHTML={{ __html: contentHtml }}
       />

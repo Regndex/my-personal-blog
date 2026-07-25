@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
+import { generateUniqueSlug } from '../../utils/slug'
 import PostForm from '../../components/PostForm'
 
 export default function NewPost() {
@@ -8,7 +9,8 @@ export default function NewPost() {
   const [redirecting, setRedirecting] = useState(false)
 
   async function handleCreate(data) {
-    const { error } = await supabase.from('posts').insert(data)
+    const slug = await generateUniqueSlug(data.title)
+    const { error } = await supabase.from('posts').insert({ ...data, slug })
     if (error) throw error
 
     setRedirecting(true)

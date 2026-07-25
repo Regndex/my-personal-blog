@@ -18,7 +18,7 @@ export default function SearchBar({ value, onChange }) {
         type="text"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="ابحث عن مقال بالعنوان..."
+        placeholder="ابحث في العنوان أو النص..."
         className="w-full rounded-full border border-stone-200 bg-white py-3 ps-11 pe-4 text-ink placeholder:text-stone-400 transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600 dark:bg-surface"
       />
     </div>

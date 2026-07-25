@@ -12,7 +12,7 @@ export default function RelatedPosts({ currentPost }) {
     async function loadRelated() {
       let query = supabase
         .from('posts')
-        .select('id, title, image_url, created_at, tags')
+        .select('id, title, image_url, created_at, tags, slug')
         .neq('id', currentPost.id)
         .limit(3)
 
@@ -29,7 +29,7 @@ export default function RelatedPosts({ currentPost }) {
       if (related.length === 0 && currentPost.tags?.length > 0) {
         const fallback = await supabase
           .from('posts')
-          .select('id, title, image_url, created_at, tags')
+          .select('id, title, image_url, created_at, tags, slug')
           .neq('id', currentPost.id)
           .order('created_at', { ascending: false })
           .limit(3)
@@ -54,7 +54,7 @@ export default function RelatedPosts({ currentPost }) {
         {posts.map((post) => (
           <Link
             key={post.id}
-            to={`/post/${post.id}`}
+            to={`/post/${post.slug || post.id}`}
             className="group overflow-hidden rounded-2xl border border-stone-200/80 bg-white transition-shadow hover:shadow-md dark:border-stone-700 dark:bg-surface"
           >
             <div className="aspect-[16/10] overflow-hidden bg-stone-100 dark:bg-stone-800">

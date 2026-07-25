@@ -18,7 +18,7 @@ export default function Archive() {
     async function loadPosts() {
       const { data } = await supabase
         .from('posts')
-        .select('id, title, published_at')
+        .select('id, title, published_at, slug')
         .order('published_at', { ascending: false })
 
       if (isMounted) {
@@ -69,7 +69,7 @@ export default function Archive() {
               {group.posts.map((post) => (
                 <li key={post.id}>
                   <Link
-                    to={`/post/${post.id}`}
+                    to={`/post/${post.slug || post.id}`}
                     className="text-ink transition-colors hover:text-pine-600"
                   >
                     {post.title}
