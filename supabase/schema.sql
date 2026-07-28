@@ -51,6 +51,17 @@ alter table public.posts add column if not exists is_pinned boolean not null def
 alter table public.posts add column if not exists series_name text;
 alter table public.posts add column if not exists series_order integer;
 
+-- Password-protected posts. When protected, `content` is left NULL and the
+-- real text lives only inside `encrypted_payload` — encrypted client-side
+-- with the author's password (see src/utils/postLock.js), so the row
+-- itself never holds readable content. RLS can keep treating this exactly
+-- like any other published post's SELECT; the ciphertext is safe to serve.
+alter table public.posts add column if not exists password_protected boolean not null default false;
+alter table public.posts add column if not exists encrypted_payload text;
+-- `content` was originally NOT NULL, which would reject exactly the NULL
+-- content a protected post is supposed to have — relax it.
+alter table public.posts alter column content drop not null;
+
 -- Row Level Security: locked down by default, opened up explicitly below.
 alter table public.posts enable row level security;
 

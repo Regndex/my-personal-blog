@@ -21,6 +21,7 @@ export default async function handler(req, res) {
       .select('id, slug, published_at')
       .not('published_at', 'is', null)
       .lte('published_at', new Date().toISOString())
+      .eq('password_protected', false)
 
     const siteUrl = `https://${req.headers.host}`
 

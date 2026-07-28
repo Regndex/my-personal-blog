@@ -56,7 +56,7 @@ export default function Home() {
       const matchesQuery =
         !trimmed ||
         post.title?.toLowerCase().includes(trimmed) ||
-        post.content?.toLowerCase().includes(trimmed)
+        (!post.password_protected && post.content?.toLowerCase().includes(trimmed))
       const matchesTag = !activeTag || post.tags?.includes(activeTag)
       return matchesQuery && matchesTag
     })

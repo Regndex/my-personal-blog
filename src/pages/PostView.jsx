@@ -17,6 +17,7 @@ import LikeButton from '../components/LikeButton'
 import RelatedPosts from '../components/RelatedPosts'
 import PostNavigation from '../components/PostNavigation'
 import SeriesNav from '../components/SeriesNav'
+import PostLockGate from '../components/PostLockGate'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -25,6 +26,7 @@ export default function PostView() {
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [unlockedContent, setUnlockedContent] = useState(null)
   const hasCountedView = useRef(false)
   const contentRef = useRef(null)
 
@@ -70,18 +72,23 @@ export default function PostView() {
     }
   }, [post])
 
+  // For a protected post, nothing derived from the body should run until
+  // the visitor has actually unlocked it — there's no plaintext yet.
+  const isLocked = post?.password_protected && !unlockedContent
+  const effectiveContent = post?.password_protected ? unlockedContent : post?.content
+
   // Only ever run post *content* through the Markdown renderer — it's
   // written exclusively by the authenticated owner. Comments, by contrast,
   // are rendered as plain text elsewhere since they come from the public.
   const { html: contentHtml, headings } = useMemo(
-    () => renderPostContent(post?.content),
-    [post?.content]
+    () => renderPostContent(effectiveContent),
+    [effectiveContent]
   )
-  const readingMinutes = useMemo(() => estimateReadingTime(post?.content), [post?.content])
+  const readingMinutes = useMemo(() => estimateReadingTime(effectiveContent), [effectiveContent])
 
   useDocumentMeta({
     title: post?.title,
-    description: post?.content?.slice(0, 150),
+    description: isLocked ? 'هذا المقال محمي بكلمة مرور' : effectiveContent?.slice(0, 150),
     image: post?.image_url,
   })
   useStructuredData(post)
@@ -135,8 +142,12 @@ export default function PostView() {
       <header className="mb-8">
         <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium tracking-wide text-gold-600">
           <span>{formatDate(post.published_at || post.created_at)}</span>
-          <span className="text-stone-300 dark:text-stone-600">·</span>
-          <span>{readingMinutes} دقائق قراءة</span>
+          {!isLocked && (
+            <>
+              <span className="text-stone-300 dark:text-stone-600">·</span>
+              <span>{readingMinutes} دقائق قراءة</span>
+            </>
+          )}
           {post.views_count > 0 && (
             <>
               <span className="text-stone-300 dark:text-stone-600">·</span>
@@ -150,29 +161,38 @@ export default function PostView() {
         <TagPills tags={post.tags} size="md" />
       </header>
 
-      <SeriesNav seriesName={post.series_name} currentPostId={post.id} />
-      <TableOfContents headings={headings} />
+      {isLocked ? (
+        <PostLockGate
+          encryptedPayload={post.encrypted_payload}
+          onUnlock={setUnlockedContent}
+        />
+      ) : (
+        <>
+          <SeriesNav seriesName={post.series_name} currentPostId={post.id} />
+          <TableOfContents headings={headings} />
 
-      <div
-        ref={contentRef}
-        className="post-content font-serif text-[17px] leading-8 text-ink/90"
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
-      />
+          <div
+            ref={contentRef}
+            className="post-content font-serif text-[17px] leading-8 text-ink/90"
+            dangerouslySetInnerHTML={{ __html: contentHtml }}
+          />
 
-      {post.video_url && (
-        <div className="mt-10">
-          <VideoEmbed url={post.video_url} />
-        </div>
+          {post.video_url && (
+            <div className="mt-10">
+              <VideoEmbed url={post.video_url} />
+            </div>
+          )}
+
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 dark:border-stone-700">
+            <LikeButton postId={post.id} initialCount={post.likes_count} />
+            <ShareButtons title={post.title} url={window.location.href} />
+          </div>
+
+          <PostNavigation currentPost={post} />
+          <RelatedPosts currentPost={post} />
+          <CommentSection postId={post.id} />
+        </>
       )}
-
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 dark:border-stone-700">
-        <LikeButton postId={post.id} initialCount={post.likes_count} />
-        <ShareButtons title={post.title} url={window.location.href} />
-      </div>
-
-      <PostNavigation currentPost={post} />
-      <RelatedPosts currentPost={post} />
-      <CommentSection postId={post.id} />
     </article>
   )
 }

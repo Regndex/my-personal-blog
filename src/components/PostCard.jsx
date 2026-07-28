@@ -36,14 +36,19 @@ export default function PostCard({ post }) {
             </span>
           )}
           <span>{formatDate(post.published_at || post.created_at)}</span>
-          <span className="text-stone-300 dark:text-stone-600">·</span>
-          <span>{estimateReadingTime(post.content)} د</span>
+          {!post.password_protected && (
+            <>
+              <span className="text-stone-300 dark:text-stone-600">·</span>
+              <span>{estimateReadingTime(post.content)} د</span>
+            </>
+          )}
         </span>
-        <h2 className="mb-2 line-clamp-2 text-lg font-bold text-ink transition-colors group-hover:text-pine-600">
+        <h2 className="mb-2 line-clamp-2 flex items-center gap-1.5 text-lg font-bold text-ink transition-colors group-hover:text-pine-600">
+          {post.password_protected && <span aria-hidden="true">🔒</span>}
           {post.title}
         </h2>
         <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
-          {getExcerpt(post.content)}
+          {post.password_protected ? 'محتوى محمي بكلمة مرور' : getExcerpt(post.content)}
         </p>
         {post.tags?.length > 0 && (
           <div className="mt-3">

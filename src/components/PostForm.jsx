@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, BLOG_IMAGES_BUCKET } from '../lib/supabaseClient'
 import { compressImage } from '../utils/imageCompression'
+import { encryptContent } from '../utils/postLock'
 import PostPreview from './PostPreview'
 import ImagePicker from './ImagePicker'
 
@@ -50,6 +51,8 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
   const [imageInfo, setImageInfo] = useState(null)
   const [isPinned, setIsPinned] = useState(initialData?.is_pinned || false)
   const [showImagePicker, setShowImagePicker] = useState(false)
+  const [passwordProtected, setPasswordProtected] = useState(initialData?.password_protected || false)
+  const [lockPassword, setLockPassword] = useState('')
 
   const [publishMode, setPublishMode] = useState(() => initialPublishMode(initialData?.published_at))
   const [scheduledAt, setScheduledAt] = useState(() =>
@@ -174,6 +177,11 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       return
     }
 
+    if (passwordProtected && !lockPassword.trim()) {
+      setError('أدخل كلمة مرور لحماية المقال، أو ألغِ خيار الحماية')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -200,9 +208,16 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         imageUrl = publicUrlData.publicUrl
       }
 
+      // Password protection: the plaintext never reaches `content` at all
+      // in this case — only the encrypted payload is stored. See
+      // src/utils/postLock.js for why this is a real (not decorative) gate.
+      const contentPayload = passwordProtected
+        ? { content: null, encrypted_payload: await encryptContent(form.content.trim(), lockPassword) }
+        : { content: form.content.trim(), encrypted_payload: null }
+
       await onSubmit({
         title: form.title.trim(),
-        content: form.content.trim(),
+        ...contentPayload,
         image_url: imageUrl || null,
         video_url: form.videoUrl.trim() || null,
         tags: parseTags(form.tags),
@@ -210,6 +225,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         is_pinned: isPinned,
         series_name: form.seriesName.trim() || null,
         series_order: form.seriesOrder ? parseInt(form.seriesOrder, 10) : null,
+        password_protected: passwordProtected,
       })
 
       window.localStorage.removeItem(storageKey)
@@ -426,6 +442,38 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         />
         <span className="text-sm font-medium text-ink">تثبيت المقال أعلى الصفحة الرئيسية</span>
       </label>
+
+      <div>
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <input
+            type="checkbox"
+            checked={passwordProtected}
+            onChange={(event) => setPasswordProtected(event.target.checked)}
+            className="h-4 w-4 rounded border-stone-300 text-pine-600 focus:ring-pine-500"
+          />
+          <span className="text-sm font-medium text-ink">حماية المقال بكلمة مرور</span>
+        </label>
+
+        {passwordProtected && (
+          <>
+            <input
+              type="password"
+              value={lockPassword}
+              onChange={(event) => setLockPassword(event.target.value)}
+              placeholder={
+                initialData?.password_protected
+                  ? 'أعد إدخال كلمة المرور لحفظها (لتغييرها اكتب كلمة جديدة)'
+                  : 'كلمة المرور'
+              }
+              className="mt-3 w-full rounded-xl border border-stone-200 bg-transparent px-4 py-3 text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
+            />
+            <p className="mt-2 text-xs text-stone-400">
+              يُشفَّر نص المقال فعلياً بهذه الكلمة — لا نحتفظ بها، فلا يمكن استرجاعها إن نسيتها.
+              العنوان والصورة يبقيان ظاهرين في القائمة، والنص فقط محمي.
+            </p>
+          </>
+        )}
+      </div>
 
       <div>
         <span className="mb-2 block text-sm font-medium text-ink">حالة النشر</span>

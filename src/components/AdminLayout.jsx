@@ -8,6 +8,7 @@ const TABS = [
   { to: '/admin/posts', label: 'إدارة المقالات' },
   { to: '/admin/comments', label: 'التعليقات' },
   { to: '/admin/stats', label: 'الإحصائيات' },
+  { to: '/admin/backup', label: 'نسخ احتياطي' },
 ]
 
 export default function AdminLayout() {

@@ -5,6 +5,7 @@ import { generateUniqueSlug } from '../../utils/slug'
 import PostForm from '../../components/PostForm'
 import RevisionHistory from '../../components/RevisionHistory'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PostLockGate from '../../components/PostLockGate'
 
 export default function EditPost() {
   const { id } = useParams()
@@ -14,6 +15,7 @@ export default function EditPost() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
+  const [unlockedContent, setUnlockedContent] = useState(null)
   // Bumped whenever a revision is restored, forcing PostForm to remount
   // with the restored values as its fresh initialData.
   const [formKey, setFormKey] = useState(0)
@@ -46,15 +48,19 @@ export default function EditPost() {
 
   async function handleUpdate(data) {
     // Snapshot the post's current (pre-update) state before overwriting it,
-    // so it can be restored later from the revision history below.
-    await supabase.from('post_revisions').insert({
-      post_id: id,
-      title: post.title,
-      content: post.content,
-      image_url: post.image_url,
-      video_url: post.video_url,
-      tags: post.tags,
-    })
+    // so it can be restored later from the revision history below. Skipped
+    // for protected posts: we only ever hold decrypted content transiently
+    // in memory, never write plaintext anywhere it doesn't belong.
+    if (!post.password_protected) {
+      await supabase.from('post_revisions').insert({
+        post_id: id,
+        title: post.title,
+        content: post.content,
+        image_url: post.image_url,
+        video_url: post.video_url,
+        tags: post.tags,
+      })
+    }
 
     // The slug is generated once and then kept stable even if the title
     // changes later, so already-shared links keep working. Only generate
@@ -98,23 +104,39 @@ export default function EditPost() {
     )
   }
 
+  const needsUnlock = post.password_protected && !unlockedContent
+
   return (
     <div>
       <h1 className="font-display mb-2 text-2xl font-medium text-ink sm:text-3xl">
         تعديل المقال
       </h1>
       <p className="mb-8 text-stone-500">
-        {redirecting ? 'جارٍ التوجيه إلى إدارة المقالات...' : 'عدّل أي حقل ثم احفظ التغييرات'}
+        {redirecting
+          ? 'جارٍ التوجيه إلى إدارة المقالات...'
+          : needsUnlock
+            ? 'أدخل كلمة المرور الحالية لتحرير هذا المقال المحمي'
+            : 'عدّل أي حقل ثم احفظ التغييرات'}
       </p>
 
-      <RevisionHistory postId={id} onRestore={handleRestoreRevision} />
-
-      <PostForm
-        key={formKey}
-        initialData={post}
-        onSubmit={handleUpdate}
-        submitLabel="حفظ التغييرات"
-      />
+      {needsUnlock ? (
+        <PostLockGate
+          encryptedPayload={post.encrypted_payload}
+          onUnlock={setUnlockedContent}
+        />
+      ) : (
+        <>
+          <RevisionHistory postId={id} onRestore={handleRestoreRevision} />
+          <PostForm
+            key={formKey}
+            initialData={
+              post.password_protected ? { ...post, content: unlockedContent } : post
+            }
+            onSubmit={handleUpdate}
+            submitLabel="حفظ التغييرات"
+          />
+        </>
+      )}
     </div>
   )
 }
