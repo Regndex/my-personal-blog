@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { formatDate } from '../utils/formatDate'
-import { renderPostContent } from '../utils/markdown'
+import { renderContent } from '../utils/contentRenderer'
 import { estimateReadingTime } from '../utils/readingTime'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useStructuredData } from '../hooks/useStructuredData'
@@ -81,8 +81,8 @@ export default function PostView() {
   // written exclusively by the authenticated owner. Comments, by contrast,
   // are rendered as plain text elsewhere since they come from the public.
   const { html: contentHtml, headings } = useMemo(
-    () => renderPostContent(effectiveContent),
-    [effectiveContent]
+    () => renderContent({ ...post, content: effectiveContent }),
+    [post, effectiveContent]
   )
   const readingMinutes = useMemo(() => estimateReadingTime(effectiveContent), [effectiveContent])
 

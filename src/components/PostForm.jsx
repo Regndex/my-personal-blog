@@ -4,6 +4,7 @@ import { compressImage } from '../utils/imageCompression'
 import { encryptContent } from '../utils/postLock'
 import PostPreview from './PostPreview'
 import ImagePicker from './ImagePicker'
+import RichTextEditor from './editor/RichTextEditor'
 
 function parseTags(input) {
   return input
@@ -37,6 +38,13 @@ function autosaveKey(postId) {
  */
 export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ' }) {
   const storageKey = autosaveKey(initialData?.id)
+  // Existing posts saved before the toolbar editor keep opening in the
+  // familiar Markdown textarea — converting their saved text into the new
+  // editor's HTML risks silently mangling formatting or dropping images
+  // that don't match the new figure structure, so it isn't attempted.
+  // Every new post, and any post already saved in 'html' format, gets the
+  // new editor.
+  const isLegacyMarkdown = Boolean(initialData) && initialData.content_format !== 'html'
 
   const [form, setForm] = useState({
     title: initialData?.title || '',
@@ -218,6 +226,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
       await onSubmit({
         title: form.title.trim(),
         ...contentPayload,
+        content_format: isLegacyMarkdown ? 'markdown' : 'html',
         image_url: imageUrl || null,
         video_url: form.videoUrl.trim() || null,
         tags: parseTags(form.tags),
@@ -256,6 +265,7 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
         <PostPreview
           title={form.title}
           content={form.content}
+          contentFormat={isLegacyMarkdown ? 'markdown' : 'html'}
           imageUrl={previewUrl}
           tags={parseTags(form.tags)}
           videoUrl={form.videoUrl}
@@ -325,19 +335,28 @@ export default function PostForm({ initialData, onSubmit, submitLabel = 'حفظ'
             </button>
           </span>
         </div>
-        <textarea
-          id="content"
-          value={form.content}
-          onChange={(event) => updateField('content', event.target.value)}
-          placeholder="اكتب محتوى مقالك هنا..."
-          rows={12}
-          className="w-full resize-y rounded-xl border border-stone-200 bg-transparent px-4 py-3 font-mono text-sm text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
-        />
-        <p className="mt-2 text-xs leading-relaxed text-stone-400">
-          يدعم Markdown: **عريض**، *مائل*، عنوان بـ <span dir="ltr">## نص</span>، كود بثلاث
-          علامات <span dir="ltr">```</span>، صورة بـ <span dir="ltr">![وصف](رابط)</span>. الصق
-          رابط يوتيوب في سطر منفرد لتضمينه كفيديو في مكانه بالضبط.
-        </p>
+        {isLegacyMarkdown ? (
+          <>
+            <textarea
+              id="content"
+              value={form.content}
+              onChange={(event) => updateField('content', event.target.value)}
+              placeholder="اكتب محتوى مقالك هنا..."
+              rows={12}
+              className="w-full resize-y rounded-xl border border-stone-200 bg-transparent px-4 py-3 font-mono text-sm text-ink transition focus:border-pine-400 focus:outline-none focus:ring-2 focus:ring-pine-500/30 dark:border-stone-600"
+            />
+            <p className="mt-2 text-xs leading-relaxed text-stone-400">
+              مقال قديم بصيغة Markdown: **عريض**، *مائل*، عنوان بـ{' '}
+              <span dir="ltr">## نص</span>، صورة بـ <span dir="ltr">![وصف](رابط)</span>. المقالات
+              الجديدة تستخدم محرراً بأدوات جاهزة بدل هذه الاختصارات.
+            </p>
+          </>
+        ) : (
+          <RichTextEditor
+            content={form.content}
+            onChange={(html) => updateField('content', html)}
+          />
+        )}
       </div>
 
       <div>

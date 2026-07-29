@@ -223,3 +223,61 @@
   height: 100%;
   border: 0;
 }
+
+/*
+  Image "templates" — the toolbar-driven alternative to typing Markdown.
+  Shared between the live editor (.prose-editor) and the published view
+  (.post-content) so what the author sees while writing matches what
+  readers see, using the same data-align values the FigureImage extension
+  writes (src/components/editor/extensions.js).
+*/
+.post-figure {
+  margin: 1.5em 0;
+  max-width: 100%;
+}
+.post-figure img {
+  width: 100%;
+  border-radius: 1rem;
+  margin: 0;
+}
+.post-figure figcaption {
+  margin-top: 0.5em;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--color-ink);
+  opacity: 0.6;
+}
+.post-figure-right {
+  float: right;
+  width: 45%;
+  margin-inline-start: 1.5em;
+}
+.post-figure-left {
+  float: left;
+  width: 45%;
+  margin-inline-end: 1.5em;
+}
+.post-figure-center {
+  clear: both;
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .post-figure-right,
+  .post-figure-left {
+    float: none;
+    width: 100%;
+    margin-inline: 0;
+  }
+}
+
+.prose-editor {
+  color: var(--color-ink);
+}
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  color: var(--color-ink);
+  opacity: 0.35;
+  pointer-events: none;
+  height: 0;
+}

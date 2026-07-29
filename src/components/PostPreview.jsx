@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { renderPostContent } from '../utils/markdown'
+import { renderContent } from '../utils/contentRenderer'
 import TagPills from './TagPills'
 import VideoEmbed from './VideoEmbed'
 
@@ -7,8 +7,11 @@ import VideoEmbed from './VideoEmbed'
  * Renders form data exactly the way PostView will once saved — used by
  * PostForm's "معاينة" toggle, working from in-memory (unsaved) values.
  */
-export default function PostPreview({ title, content, imageUrl, tags, videoUrl }) {
-  const { html } = useMemo(() => renderPostContent(content), [content])
+export default function PostPreview({ title, content, contentFormat, imageUrl, tags, videoUrl }) {
+  const { html } = useMemo(
+    () => renderContent({ content, content_format: contentFormat }),
+    [content, contentFormat]
+  )
 
   return (
     <div className="rounded-2xl border border-stone-200/80 bg-white p-6 sm:p-8 dark:border-stone-700 dark:bg-surface">

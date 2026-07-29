@@ -62,6 +62,13 @@ alter table public.posts add column if not exists encrypted_payload text;
 -- content a protected post is supposed to have — relax it.
 alter table public.posts alter column content drop not null;
 
+-- Which pipeline `content` should be rendered through: 'markdown' (the
+-- original plain-textarea + Markdown posts) or 'html' (the newer toolbar
+-- editor, which stores already-structured HTML directly). Defaulting to
+-- 'markdown' means every pre-existing post keeps rendering exactly as
+-- before with zero migration needed.
+alter table public.posts add column if not exists content_format text not null default 'markdown';
+
 -- Row Level Security: locked down by default, opened up explicitly below.
 alter table public.posts enable row level security;
 
