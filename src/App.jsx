@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import Header from './components/Header'
 import LoadingSpinner from './components/LoadingSpinner'
 import Home from './pages/Home'
@@ -19,9 +19,30 @@ const BackupTools = lazy(() => import('./pages/admin/BackupTools'))
 const Archive = lazy(() => import('./pages/Archive'))
 const NotFound = lazy(() => import('./components/NotFound'))
 
+// PixiJS + the whole simulation engine is a decorative extra, not core
+// reading functionality — lazy so it never delays first paint/interactive
+// for someone who just wants to read, and excluded from /admin entirely
+// (see below) so it never even loads while writing/managing posts.
+const LivingWorld = lazy(() => import('./components/LivingWorld'))
+
 export default function App() {
+  const location = useLocation()
+  const isAdmin = location.pathname.startsWith('/admin')
+
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="relative isolate min-h-screen bg-paper">
+      {/* Absolutely positioned to this wrapper, which spans the full
+          document height in normal flow — the world's canvas scrolls
+          with the page and its coordinates line up with real content
+          geography, rather than a viewport-fixed "camera" needing its
+          own scroll-offset math. Negative z-index keeps it behind every
+          normal-flow element below without those elements needing any
+          z-index of their own. */}
+      {!isAdmin && (
+        <Suspense fallback={null}>
+          <LivingWorld />
+        </Suspense>
+      )}
       <Header />
       <main>
         <Suspense fallback={<LoadingSpinner />}>
