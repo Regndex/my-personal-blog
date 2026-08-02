@@ -49,6 +49,7 @@ export function spawnCreature(world, speciesId, x, y, simulatedTime = 0) {
   world.addComponent(id, 'Perception', C.Perception())
   world.addComponent(id, 'SocialMemory', C.SocialMemory())
   world.addComponent(id, 'AIState', C.AIState())
+  world.addComponent(id, 'AnimationState', C.AnimationState())
   world.addComponent(id, 'Lifecycle', C.Lifecycle(speciesId, simulatedTime))
 
   return id

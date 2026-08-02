@@ -78,3 +78,27 @@ export function AIState() {
 export function Lifecycle(speciesId, spawnedAt) {
   return { speciesId, spawnedAt }
 }
+
+/**
+ * Purely visual "performance" state — computed by AnimationSystem from
+ * Velocity/AIState/Needs, consumed only by RenderSync. Kept separate from
+ * Appearance (which is static per-species) because this changes every
+ * frame; separating "what a creature looks like" from "how it's currently
+ * performing" is what let cartoon-animation-principle logic (squash and
+ * stretch, slow in/out, anticipation) be added as one new system rather
+ * than scattered into Steering/Physics.
+ */
+export function AnimationState() {
+  return {
+    expression: 'neutral',
+    stretchAlong: 1,
+    stretchAcross: 1,
+    prevSpeed: 0,
+    squashPulse: 0,
+    breathingPhase: Math.random() * Math.PI * 2,
+    // Smoothly-eased (never snapped) — what RenderSync actually applies,
+    // distinct from the instantaneous "hiding: true/false" AIState.
+    displayAlpha: 1,
+    displayScale: 1,
+  }
+}

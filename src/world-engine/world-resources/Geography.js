@@ -58,6 +58,21 @@ export function regionCenter(region) {
   return { x: region.x + region.width / 2, y: region.y + region.height / 2 }
 }
 
+/** A point just outside the region's border, at a random angle — used for
+ *  "hide" targets so a creature settles at an image's edge (peeking in)
+ *  rather than at its dead center, which read as vanishing into the
+ *  middle of whatever container happened to be measured. */
+export function regionEdgePoint(region, outset = 14) {
+  const angle = Math.random() * Math.PI * 2
+  const center = regionCenter(region)
+  const halfW = region.width / 2 + outset
+  const halfH = region.height / 2 + outset
+  return {
+    x: center.x + Math.cos(angle) * halfW,
+    y: center.y + Math.sin(angle) * halfH,
+  }
+}
+
 export function isPointInRegion(region, x, y) {
   return x >= region.x && x <= region.x + region.width && y >= region.y && y <= region.y + region.height
 }

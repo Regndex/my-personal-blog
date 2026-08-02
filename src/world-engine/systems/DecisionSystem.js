@@ -1,4 +1,4 @@
-import { regionCenter } from '../world-resources/Geography.js'
+import { regionEdgePoint } from '../world-resources/Geography.js'
 
 /**
  * The personality engine. Each creature periodically (staggered per-
@@ -68,7 +68,7 @@ export function buildOptions({ personality, needs, perception, social, geography
     if (region) {
       options.push({
         action: 'hide',
-        targetPoint: regionCenter(region),
+        targetPoint: regionEdgePoint(region),
         score: (1 - personality.courage) * 0.35 + needs.boredom * 0.1,
       })
     }

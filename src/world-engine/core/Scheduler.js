@@ -19,6 +19,7 @@ const PHASES = [
   'physics',
   'social',
   'lifecycle',
+  'presentation',
   'renderSync',
 ]
 

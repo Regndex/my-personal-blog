@@ -52,11 +52,11 @@ export default function Archive() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <h1 className="font-display mb-8 text-3xl font-medium text-ink">الأرشيف</h1>
+      <h1 className="font-display relative z-10 mb-8 text-3xl font-medium text-ink">الأرشيف</h1>
 
       {groups.length === 0 && <p className="text-stone-400">لا توجد مقالات بعد.</p>}
 
-      <div className="space-y-8">
+      <div className="relative z-10 space-y-8">
         {groups.map((group) => (
           <section key={`${group.year}-${group.month}`}>
             <h2 className="mb-3 text-sm font-bold text-gold-600">

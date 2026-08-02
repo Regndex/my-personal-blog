@@ -15,7 +15,8 @@ export function RenderSyncSystem(world) {
     const position = world.getComponent(id, 'Position')
     const facing = world.getComponent(id, 'Facing')
     const appearance = world.getComponent(id, 'Appearance')
-    renderer.syncEntity(id, appearance, position, facing)
+    const anim = world.getComponent(id, 'AnimationState')
+    renderer.syncEntity(id, appearance, position, facing, anim)
     rendered.add(id)
   }
 

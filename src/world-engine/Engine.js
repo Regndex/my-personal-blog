@@ -13,7 +13,9 @@ import { SteeringSystem } from './systems/SteeringSystem.js'
 import { PhysicsSystem } from './systems/PhysicsSystem.js'
 import { SocialSystem } from './systems/SocialSystem.js'
 import { LifecycleSystem } from './systems/LifecycleSystem.js'
+import { AnimationSystem } from './systems/AnimationSystem.js'
 import { RenderSyncSystem } from './systems/RenderSyncSystem.js'
+import { AnimationState } from './components/index.js'
 import { spawnCreature } from './species/index.js'
 import { PixiRenderer } from './PixiRenderer.js'
 import { config } from './config.js'
@@ -57,6 +59,7 @@ export class Engine {
     this.scheduler.register('physics', (world, dt) => PhysicsSystem(world, dt))
     this.scheduler.register('social', (world, dt) => SocialSystem(world, dt, this.eventBus))
     this.scheduler.register('lifecycle', (world) => LifecycleSystem(world))
+    this.scheduler.register('presentation', (world, dt) => AnimationSystem(world, dt))
     this.scheduler.register('renderSync', (world) => RenderSyncSystem(world))
 
     this._restoreOrSpawnInitialCreatures()
@@ -108,6 +111,15 @@ export class Engine {
         const { idMap, savedAt } = deserializeWorld(this.world, saved, PERSISTED_COMPONENT_TYPES)
         this._remapSocialMemoryKeys(idMap)
         this._applyAwayCatchUp(savedAt)
+        // AnimationState is deliberately NOT persisted (no value in
+        // remembering exact breathing phase/squash across sessions), so
+        // every restored entity needs a fresh one attached explicitly —
+        // otherwise AnimationSystem's query silently skips them entirely.
+        for (const newId of idMap.values()) {
+          if (!this.world.hasComponent(newId, 'AnimationState')) {
+            this.world.addComponent(newId, 'AnimationState', AnimationState())
+          }
+        }
         return
       } catch {
         // Corrupt/incompatible save — fall through to a fresh world rather

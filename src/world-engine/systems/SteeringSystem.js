@@ -8,14 +8,20 @@ const MAX_SPEED = {
 }
 
 const SEPARATION_RADIUS = 40
+const ARRIVE_SLOW_RADIUS = 70
 
 /**
- * Classic Reynolds-style steering (wander/seek/flee + separation) rather
+ * Classic Reynolds-style steering (wander/arrive/flee + separation) rather
  * than hand-authored animation paths — this is what the brief means by
  * "emerge from systems, not hardcoded sequences": nobody scripted any
  * specific path, it falls out of a few general-purpose rules composed
  * together, which is also why adding a new action later (e.g. "forage")
  * only needs one more branch here, not a new animation to hand-draw.
+ *
+ * approach/investigate/hide use arrive() rather than seek() — arrive
+ * decelerates within a radius of the target instead of driving at full
+ * speed until it snaps to a stop, which is the "slow in / slow out"
+ * animation principle applied to movement itself.
  */
 export function SteeringSystem(world, dt) {
   for (const id of world.query(['Position', 'Velocity', 'AIState', 'Perception'])) {
@@ -33,9 +39,9 @@ export function SteeringSystem(world, dt) {
       desired = { x: Math.cos(ai.wanderAngle) * maxSpeed, y: Math.sin(ai.wanderAngle) * maxSpeed }
     } else if (ai.action === 'approach' && ai.targetEntityId != null && world.isAlive(ai.targetEntityId)) {
       const targetPos = world.getComponent(ai.targetEntityId, 'Position')
-      if (targetPos) desired = seek(pos, targetPos, maxSpeed)
+      if (targetPos) desired = arrive(pos, targetPos, maxSpeed)
     } else if ((ai.action === 'investigate' || ai.action === 'hide') && ai.targetPoint) {
-      desired = seek(pos, ai.targetPoint, maxSpeed)
+      desired = arrive(pos, ai.targetPoint, maxSpeed)
     } else if (ai.action === 'flee' && pointer?.active) {
       desired = flee(pos, pointer, maxSpeed)
     }
@@ -58,6 +64,18 @@ export function seek(from, to, maxSpeed) {
   const dy = to.y - from.y
   const distance = Math.hypot(dx, dy) || 1
   return { x: (dx / distance) * maxSpeed, y: (dy / distance) * maxSpeed }
+}
+
+/** Like seek(), but ramps speed down linearly inside `slowRadius` of the
+ *  target instead of driving at maxSpeed right up to it. */
+export function arrive(from, to, maxSpeed, slowRadius = ARRIVE_SLOW_RADIUS) {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const distance = Math.hypot(dx, dy)
+  if (distance < 0.5) return { x: 0, y: 0 }
+
+  const speed = distance < slowRadius ? maxSpeed * (distance / slowRadius) : maxSpeed
+  return { x: (dx / distance) * speed, y: (dy / distance) * speed }
 }
 
 export function flee(from, threat, maxSpeed) {

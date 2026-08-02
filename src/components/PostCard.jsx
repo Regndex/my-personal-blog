@@ -28,7 +28,7 @@ export default function PostCard({ post }) {
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="relative z-10 flex flex-1 flex-col bg-white p-5 dark:bg-surface">
         <span className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gold-600">
           {post.is_pinned && (
             <span className="rounded-full bg-pine-50 px-2 py-0.5 text-pine-700 dark:bg-pine-500/15 dark:text-pine-400">

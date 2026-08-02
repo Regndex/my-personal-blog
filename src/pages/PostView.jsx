@@ -111,21 +111,6 @@ export default function PostView() {
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <Link
-        to="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-pine-600"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M17 8l4 4m0 0l-4 4m4-4H3"
-          />
-        </svg>
-        العودة للمقالات
-      </Link>
-
       {post.image_url && (
         <div className="mb-8 overflow-hidden rounded-2xl bg-stone-100 dark:bg-stone-800">
           <img
@@ -139,60 +124,80 @@ export default function PostView() {
         </div>
       )}
 
-      <header className="mb-8">
-        <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium tracking-wide text-gold-600">
-          <span>{formatDate(post.published_at || post.created_at)}</span>
-          {!isLocked && (
-            <>
-              <span className="text-stone-300 dark:text-stone-600">·</span>
-              <span>{readingMinutes} دقائق قراءة</span>
-            </>
-          )}
-          {post.views_count > 0 && (
-            <>
-              <span className="text-stone-300 dark:text-stone-600">·</span>
-              <span>{post.views_count} مشاهدة</span>
-            </>
-          )}
-        </p>
-        <h1 className="mb-4 text-2xl font-bold leading-snug text-ink sm:text-3xl lg:text-4xl">
-          {post.title}
-        </h1>
-        <TagPills tags={post.tags} size="md" />
-      </header>
+      {/* Everything readable sits above the creature canvas (z-[2] in
+          LivingWorld.jsx); the cover image above is deliberately left
+          outside this wrapper so creatures can still visibly cross it. */}
+      <div className="relative z-10">
+        <Link
+          to="/"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-pine-600"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 8l4 4m0 0l-4 4m4-4H3"
+            />
+          </svg>
+          العودة للمقالات
+        </Link>
 
-      {isLocked ? (
-        <PostLockGate
-          encryptedPayload={post.encrypted_payload}
-          onUnlock={setUnlockedContent}
-        />
-      ) : (
-        <>
-          <SeriesNav seriesName={post.series_name} currentPostId={post.id} />
-          <TableOfContents headings={headings} />
+        <header className="mb-8">
+          <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium tracking-wide text-gold-600">
+            <span>{formatDate(post.published_at || post.created_at)}</span>
+            {!isLocked && (
+              <>
+                <span className="text-stone-300 dark:text-stone-600">·</span>
+                <span>{readingMinutes} دقائق قراءة</span>
+              </>
+            )}
+            {post.views_count > 0 && (
+              <>
+                <span className="text-stone-300 dark:text-stone-600">·</span>
+                <span>{post.views_count} مشاهدة</span>
+              </>
+            )}
+          </p>
+          <h1 className="mb-4 text-2xl font-bold leading-snug text-ink sm:text-3xl lg:text-4xl">
+            {post.title}
+          </h1>
+          <TagPills tags={post.tags} size="md" />
+        </header>
 
-          <div
-            ref={contentRef}
-            className="post-content font-serif text-[17px] leading-8 text-ink/90"
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
+        {isLocked ? (
+          <PostLockGate
+            encryptedPayload={post.encrypted_payload}
+            onUnlock={setUnlockedContent}
           />
+        ) : (
+          <>
+            <SeriesNav seriesName={post.series_name} currentPostId={post.id} />
+            <TableOfContents headings={headings} />
 
-          {post.video_url && (
-            <div className="mt-10">
-              <VideoEmbed url={post.video_url} />
+            <div
+              ref={contentRef}
+              className="post-content font-serif text-[17px] leading-8 text-ink/90"
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
+
+            {post.video_url && (
+              <div className="mt-10">
+                <VideoEmbed url={post.video_url} />
+              </div>
+            )}
+
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 dark:border-stone-700">
+              <LikeButton postId={post.id} initialCount={post.likes_count} />
+              <ShareButtons title={post.title} url={window.location.href} />
             </div>
-          )}
 
-          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 dark:border-stone-700">
-            <LikeButton postId={post.id} initialCount={post.likes_count} />
-            <ShareButtons title={post.title} url={window.location.href} />
-          </div>
-
-          <PostNavigation currentPost={post} />
-          <RelatedPosts currentPost={post} />
-          <CommentSection postId={post.id} />
-        </>
-      )}
+            <PostNavigation currentPost={post} />
+            <RelatedPosts currentPost={post} />
+            <CommentSection postId={post.id} />
+          </>
+        )}
+      </div>
     </article>
   )
 }

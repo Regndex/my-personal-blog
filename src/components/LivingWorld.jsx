@@ -56,10 +56,17 @@ export default function LivingWorld() {
 
   return (
     <>
+      {/* Positioned (absolute) + z-[2] deliberately sits ABOVE plain,
+          non-positioned page content per CSS stacking rules — including
+          images — so creatures can visibly walk across them, the way the
+          brief wants. Actual readable text wrappers (post titles, article
+          bodies, headings) each get their own `relative z-10` so they
+          stay above this layer specifically; images are left unstacked on
+          purpose, so they sit below it. */}
       <div
         ref={containerRef}
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+        className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
       />
       <button
         type="button"
